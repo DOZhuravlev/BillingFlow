@@ -1,0 +1,56 @@
+# General
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+
+._*
+
+# macOS
+.DS_Store
+
+# Xcode
+- .xcscmblueprint
+*.xccheckout
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+DerivedData/
+.build/
+
+### Xcode Patch
+
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+**/xcshareddata/WorkspaceSettings.xcsettings
+
+# SwiftPM
+.swiftpm/
+
+# Logs
+*.log
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Code Coverage
+*.profdata
+
+# Environment
+.env
+
+# Project Docs (private)
+Docs/
+
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+
