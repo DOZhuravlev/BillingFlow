@@ -7,14 +7,15 @@ final class DocumentEditorViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let repository: DocumentsRepositoryProtocol
-    private let draftFactory: DocumentFactory
     private let validator: DocumentValidator
 
     // MARK: - State
 
+    private let isEditingExistingDocument: Bool
     @Published var draft: DocumentDraft
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var didSave = false
 
     // MARK: - Computed Properties
 
@@ -24,6 +25,10 @@ final class DocumentEditorViewModel: ObservableObject {
 
     var canSave: Bool {
         validator.validate(document: readyDocument).isValid
+    }
+
+    var isEditing: Bool {
+        isEditingExistingDocument
     }
 
     private var readyDocument: BusinessDocument {
@@ -39,9 +44,21 @@ final class DocumentEditorViewModel: ObservableObject {
         validator: DocumentValidator
     ) {
         self.repository = repository
-        self.draftFactory = factory
         self.validator = validator
+        self.isEditingExistingDocument = false
         self.draft = factory.makeEmptyDraft(type: type)
+    }
+
+    init(
+        document: BusinessDocument,
+        repository: DocumentsRepositoryProtocol,
+        factory: DocumentFactory,
+        validator: DocumentValidator
+    ) {
+        self.repository = repository
+        self.validator = validator
+        self.isEditingExistingDocument = true
+        self.draft = Self.makeDraft(from: document)
     }
 
     convenience init(
@@ -50,6 +67,18 @@ final class DocumentEditorViewModel: ObservableObject {
     ) {
         self.init(
             type: type,
+            repository: repository,
+            factory: DocumentFactory(),
+            validator: DocumentValidator()
+        )
+    }
+
+    convenience init(
+        document: BusinessDocument,
+        repository: DocumentsRepositoryProtocol
+    ) {
+        self.init(
+            document: document,
             repository: repository,
             factory: DocumentFactory(),
             validator: DocumentValidator()
@@ -162,6 +191,7 @@ final class DocumentEditorViewModel: ObservableObject {
 
         do {
             try await repository.save(document: readyDocument)
+            didSave = true
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -173,6 +203,7 @@ final class DocumentEditorViewModel: ObservableObject {
         updates(&draft)
         draft.updatedAt = Date()
         errorMessage = nil
+        didSave = false
     }
 
     private func defaultUnit(for type: DocumentType) -> String {
@@ -182,5 +213,20 @@ final class DocumentEditorViewModel: ObservableObject {
         case .invoice, .act:
             return ""
         }
+    }
+
+    private static func makeDraft(from document: BusinessDocument) -> DocumentDraft {
+        DocumentDraft(
+            id: document.id,
+            type: document.type,
+            number: document.number,
+            date: document.date,
+            seller: document.seller,
+            buyer: document.buyer,
+            items: document.items,
+            notes: document.notes,
+            currencyCode: document.currencyCode,
+            updatedAt: Date()
+        )
     }
 }

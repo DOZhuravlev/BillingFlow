@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DocumentCardView: View {
 
+    // MARK: - Properties
+
     let document: BusinessDocument
 
     private static let amountFormatter: NumberFormatter = {
@@ -19,6 +21,8 @@ struct DocumentCardView: View {
         formatter.dateFormat = "d MMMM yyyy"
         return formatter
     }()
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -62,6 +66,7 @@ struct DocumentCardView: View {
                 .stroke(Color.black.opacity(0.04), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 10)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Components

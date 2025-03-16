@@ -4,11 +4,14 @@ struct DocumentsScreen: View {
 
     // MARK: - Properties
 
+    private let repository: DocumentsRepositoryProtocol
     @StateObject private var viewModel: DocumentsListViewModel
+    @State private var activeEditor: ActiveEditor?
 
     // MARK: - Initialization
 
     init(repository: DocumentsRepositoryProtocol) {
+        self.repository = repository
         _viewModel = StateObject(
             wrappedValue: DocumentsListViewModel(repository: repository)
         )
@@ -17,45 +20,54 @@ struct DocumentsScreen: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            backgroundColor
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    headerActions
-                    contentView
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        headerActions
+                        contentView
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
+            .navigationTitle("Документы")
         }
         .task {
             await viewModel.loadDocuments()
+        }
+        .sheet(item: $activeEditor) { editor in
+            editorScreen(for: editor)
         }
     }
 
     // MARK: - Components
 
-    private var backgroundColor: Color {
-        Color(.systemGroupedBackground)
-    }
-
     private var headerActions: some View {
         HStack(spacing: 12) {
-            quickActionButton(title: "Счет", systemImage: "doc.text", tint: .blue)
-            quickActionButton(title: "Акт", systemImage: "checkmark.seal", tint: .green)
-            quickActionButton(title: "Накладная", systemImage: "shippingbox", tint: .orange)
+            quickActionButton(title: "Счет", systemImage: "doc.text", tint: .blue) {
+                activeEditor = .new(.invoice)
+            }
+            quickActionButton(title: "Акт", systemImage: "checkmark.seal", tint: .green) {
+                activeEditor = .new(.act)
+            }
+            quickActionButton(title: "Накладная", systemImage: "shippingbox", tint: .orange) {
+                activeEditor = .new(.deliveryNote)
+            }
         }
     }
 
     private func quickActionButton(
         title: String,
         systemImage: String,
-        tint: Color
+        tint: Color,
+        action: @escaping () -> Void
     ) -> some View {
-        Button(action: {}) {
+        Button(action: action) {
             Label(title, systemImage: systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tint)
@@ -129,11 +141,57 @@ struct DocumentsScreen: View {
             case .loaded(let documents):
                 LazyVStack(spacing: 18) {
                     ForEach(documents) { document in
-                        DocumentCardView(document: document)
+                        Button {
+                            activeEditor = .edit(document)
+                        } label: {
+                            DocumentCardView(document: document)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func editorScreen(for editor: ActiveEditor) -> some View {
+        switch editor {
+        case .new(let type):
+            DocumentEditorScreen(
+                type: type,
+                repository: repository,
+                onSaved: reloadDocuments
+            )
+
+        case .edit(let document):
+            DocumentEditorScreen(
+                document: document,
+                repository: repository,
+                onSaved: reloadDocuments
+            )
+        }
+    }
+
+    private func reloadDocuments() {
+        Task {
+            await viewModel.reload()
+        }
+    }
+}
+
+// MARK: - Navigation
+
+private enum ActiveEditor: Identifiable {
+    case new(DocumentType)
+    case edit(BusinessDocument)
+
+    var id: String {
+        switch self {
+        case .new(let type):
+            return "new-\(type.rawValue)"
+        case .edit(let document):
+            return "edit-\(document.id.uuidString)"
+        }
     }
 }

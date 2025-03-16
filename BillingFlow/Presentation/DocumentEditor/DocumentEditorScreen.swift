@@ -4,17 +4,35 @@ struct DocumentEditorScreen: View {
 
     // MARK: - Properties
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: DocumentEditorViewModel
+    private let onSaved: (() -> Void)?
 
     // MARK: - Initialization
 
     init(
         type: DocumentType,
-        repository: DocumentsRepositoryProtocol
+        repository: DocumentsRepositoryProtocol,
+        onSaved: (() -> Void)? = nil
     ) {
+        self.onSaved = onSaved
         _viewModel = StateObject(
             wrappedValue: DocumentEditorViewModel(
                 type: type,
+                repository: repository
+            )
+        )
+    }
+
+    init(
+        document: BusinessDocument,
+        repository: DocumentsRepositoryProtocol,
+        onSaved: (() -> Void)? = nil
+    ) {
+        self.onSaved = onSaved
+        _viewModel = StateObject(
+            wrappedValue: DocumentEditorViewModel(
+                document: document,
                 repository: repository
             )
         )
@@ -39,6 +57,11 @@ struct DocumentEditorScreen: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .scrollIndicators(.hidden)
+        .onChange(of: viewModel.didSave) { didSave in
+            guard didSave else { return }
+            onSaved?()
+            dismiss()
+        }
     }
 
     // MARK: - Sections
@@ -198,11 +221,11 @@ struct DocumentEditorScreen: View {
     private var screenTitle: String {
         switch viewModel.draft.type {
         case .invoice:
-            return "Новый счет"
+            return viewModel.isEditing ? "Редактирование счета" : "Новый счет"
         case .act:
-            return "Новый акт"
+            return viewModel.isEditing ? "Редактирование акта" : "Новый акт"
         case .deliveryNote:
-            return "Новая накладная"
+            return viewModel.isEditing ? "Редактирование накладной" : "Новая накладная"
         }
     }
 
