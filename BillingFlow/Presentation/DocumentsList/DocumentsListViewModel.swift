@@ -4,9 +4,13 @@ import Combine
 @MainActor
 final class DocumentsListViewModel: ObservableObject {
 
-    // MARK: - Dependencies
+    // MARK: - Navigation
 
-    private let repository: DocumentsRepositoryProtocol
+    private let router: DocumentsRouterProtocol
+
+    // MARK: - Data Dependencies
+
+    private let documentsRepository: DocumentsRepositoryProtocol
 
     // MARK: - State
 
@@ -22,8 +26,19 @@ final class DocumentsListViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(repository: DocumentsRepositoryProtocol) {
-        self.repository = repository
+    init(
+        router: DocumentsRouterProtocol,
+        documentsRepository: DocumentsRepositoryProtocol
+    ) {
+        self.router = router
+        self.documentsRepository = documentsRepository
+    }
+
+    // MARK: - Lifecycle
+
+    func loadDocumentsIfNeeded() async {
+        guard case .idle = state else { return }
+        await loadDocuments()
     }
 
     // MARK: - Loading Documents
@@ -39,11 +54,29 @@ final class DocumentsListViewModel: ObservableObject {
         await loadDocuments()
     }
 
+    // MARK: - Data Refresh
+
+    func handleDocumentsDidChange() {
+        Task {
+            await reload()
+        }
+    }
+    
+    // MARK: - User Actions
+
+    func didTapCreateDocument(type: DocumentType) {
+        router.showCreateDocument(type: type)
+    }
+
+    func didTapDocument(document: BusinessDocument) {
+        router.showEditDocument(document: document)
+    }
+
     // MARK: - Loading Logic
 
     private func performLoad() async {
         do {
-            let documents = try await repository.fetchDocuments()
+            let documents = try await documentsRepository.fetchDocuments()
 
             if documents.isEmpty {
                 state = .empty

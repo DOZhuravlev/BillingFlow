@@ -2,64 +2,164 @@ import SwiftUI
 
 struct DocumentsScreen: View {
 
-    // MARK: - Properties
+    // MARK: - ViewModel
 
-    private let repository: DocumentsRepositoryProtocol
-    @StateObject private var viewModel: DocumentsListViewModel
-    @State private var activeEditor: ActiveEditor?
-
-    // MARK: - Initialization
-
-    init(repository: DocumentsRepositoryProtocol) {
-        self.repository = repository
-        _viewModel = StateObject(
-            wrappedValue: DocumentsListViewModel(repository: repository)
-        )
-    }
+    @ObservedObject var viewModel: DocumentsListViewModel
 
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+        ZStack {
+            backgroundLayer
 
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 20) {
-                        headerActions
-                        contentView
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    quickActionsSection
+                    documentsContentSection
                 }
-                .scrollIndicators(.hidden)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            .navigationTitle("Документы")
+            .scrollIndicators(.hidden)
         }
         .task {
-            await viewModel.loadDocuments()
-        }
-        .sheet(item: $activeEditor) { editor in
-            editorScreen(for: editor)
+            await viewModel.loadDocumentsIfNeeded()
         }
     }
 
-    // MARK: - Components
+    // MARK: - Background
 
-    private var headerActions: some View {
+    private var backgroundLayer: some View {
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
+    }
+
+    // MARK: - Quick Actions Section
+
+    private var quickActionsSection: some View {
         HStack(spacing: 12) {
-            quickActionButton(title: "Счет", systemImage: "doc.text", tint: .blue) {
-                activeEditor = .new(.invoice)
+            quickActionButton(
+                title: "Счет",
+                systemImage: "doc.text",
+                tint: .blue
+            ) {
+                viewModel.didTapCreateDocument(type: .invoice)
             }
-            quickActionButton(title: "Акт", systemImage: "checkmark.seal", tint: .green) {
-                activeEditor = .new(.act)
+
+            quickActionButton(
+                title: "Акт",
+                systemImage: "checkmark.seal",
+                tint: .green
+            ) {
+                viewModel.didTapCreateDocument(type: .act)
             }
-            quickActionButton(title: "Накладная", systemImage: "shippingbox", tint: .orange) {
-                activeEditor = .new(.deliveryNote)
+
+            quickActionButton(
+                title: "Накладная",
+                systemImage: "shippingbox",
+                tint: .orange
+            ) {
+                viewModel.didTapCreateDocument(type: .deliveryNote)
             }
         }
     }
+
+    // MARK: - Documents Content Section
+
+    private var documentsContentSection: some View {
+        Group {
+            switch viewModel.state {
+            case .idle:
+                idleStateView
+
+            case .loading:
+                loadingStateView
+
+            case .empty:
+                emptyStateView
+
+            case .error(let message):
+                errorStateView(message: message)
+
+            case .loaded(let documents):
+                documentsList(documents)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - State Views
+
+    private var idleStateView: some View {
+        StatePlaceholderView(
+            title: "Документы еще не загружены",
+            message: "Нажмите повторить, чтобы получить список документов.",
+            systemImage: "doc.text.magnifyingglass",
+            buttonTitle: "Загрузить",
+            action: {
+                Task {
+                    await viewModel.reload()
+                }
+            }
+        )
+    }
+
+    private var loadingStateView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+
+            Text("Загружаем документы...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 320)
+    }
+
+    private var emptyStateView: some View {
+        StatePlaceholderView(
+            title: "Документов пока нет",
+            message: "Создайте первый документ через быстрые действия сверху.",
+            systemImage: "tray",
+            buttonTitle: "Обновить",
+            action: {
+                Task {
+                    await viewModel.reload()
+                }
+            }
+        )
+    }
+
+    private func errorStateView(message: String) -> some View {
+        StatePlaceholderView(
+            title: "Не удалось загрузить",
+            message: message,
+            systemImage: "wifi.exclamationmark",
+            buttonTitle: "Повторить",
+            action: {
+                Task {
+                    await viewModel.reload()
+                }
+            }
+        )
+    }
+
+    // MARK: - Documents List
+
+    private func documentsList(_ documents: [BusinessDocument]) -> some View {
+        LazyVStack(spacing: 18) {
+            ForEach(documents) { document in
+                Button {
+                    viewModel.didTapDocument(document: document)
+                } label: {
+                    DocumentCardView(document: document)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Reusable Actions
 
     private func quickActionButton(
         title: String,
@@ -84,114 +184,73 @@ struct DocumentsScreen: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    private var contentView: some View {
-        Group {
-            switch viewModel.state {
-            case .idle:
-                StatePlaceholderView(
-                    title: "Документы еще не загружены",
-                    message: "Нажмите повторить, чтобы получить список документов.",
-                    systemImage: "doc.text.magnifyingglass",
-                    buttonTitle: "Загрузить",
-                    action: {
-                        Task {
-                            await viewModel.reload()
-                        }
-                    }
-                )
+// MARK: - Preview
 
-            case .loading:
-                VStack(spacing: 12) {
-                    ProgressView()
-                        .controlSize(.large)
-
-                    Text("Загружаем документы...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 320)
-
-            case .empty:
-                StatePlaceholderView(
-                    title: "Документов пока нет",
-                    message: "Создайте первый документ через быстрые действия сверху.",
-                    systemImage: "tray",
-                    buttonTitle: "Обновить",
-                    action: {
-                        Task {
-                            await viewModel.reload()
-                        }
-                    }
-                )
-
-            case .error(let message):
-                StatePlaceholderView(
-                    title: "Не удалось загрузить",
-                    message: message,
-                    systemImage: "wifi.exclamationmark",
-                    buttonTitle: "Повторить",
-                    action: {
-                        Task {
-                            await viewModel.reload()
-                        }
-                    }
-                )
-
-            case .loaded(let documents):
-                LazyVStack(spacing: 18) {
-                    ForEach(documents) { document in
-                        Button {
-                            activeEditor = .edit(document)
-                        } label: {
-                            DocumentCardView(document: document)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder
-    private func editorScreen(for editor: ActiveEditor) -> some View {
-        switch editor {
-        case .new(let type):
-            DocumentEditorScreen(
-                type: type,
-                repository: repository,
-                onSaved: reloadDocuments
+#Preview("Loaded") {
+    NavigationStack {
+        DocumentsScreen(
+            viewModel: DocumentsListViewModel(
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository()
             )
-
-        case .edit(let document):
-            DocumentEditorScreen(
-                document: document,
-                repository: repository,
-                onSaved: reloadDocuments
-            )
-        }
-    }
-
-    private func reloadDocuments() {
-        Task {
-            await viewModel.reload()
-        }
+        )
     }
 }
 
-// MARK: - Navigation
+#Preview("Empty") {
+    NavigationStack {
+        DocumentsScreen(
+            viewModel: DocumentsListViewModel(
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository(documents: [])
+            )
+        )
+    }
+}
 
-private enum ActiveEditor: Identifiable {
-    case new(DocumentType)
-    case edit(BusinessDocument)
+#Preview("Error") {
+    NavigationStack {
+        DocumentsScreen(
+            viewModel: DocumentsListViewModel(
+                router: PreviewDocumentsRouter(),
+                documentsRepository: PreviewFailureDocumentsRepository()
+            )
+        )
+    }
+}
 
-    var id: String {
-        switch self {
-        case .new(let type):
-            return "new-\(type.rawValue)"
-        case .edit(let document):
-            return "edit-\(document.id.uuidString)"
+// MARK: - Preview Router
+
+private final class PreviewDocumentsRouter: DocumentsRouterProtocol {
+    func showCreateDocument(type: DocumentType) { }
+    func showEditDocument(document: BusinessDocument) { }
+    func showPreview(document: BusinessDocument) { }
+    func finishDocumentFlowAfterShare() { }
+    func dismiss() { }
+    func pop() { }
+}
+
+// MARK: - Preview Error Repository
+
+private struct PreviewFailureDocumentsRepository: DocumentsRepositoryProtocol {
+
+    struct PreviewError: LocalizedError {
+        var errorDescription: String? {
+            "Не удалось подключиться к хранилищу документов."
         }
     }
+
+    func fetchDocuments() async throws -> [BusinessDocument] {
+        throw PreviewError()
+    }
+
+    func fetchDocument(id: UUID) async throws -> BusinessDocument? {
+        nil
+    }
+
+    func save(document: BusinessDocument) async throws { }
+
+    func deleteDocument(id: UUID) async throws { }
 }

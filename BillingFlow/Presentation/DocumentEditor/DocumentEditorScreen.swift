@@ -2,71 +2,34 @@ import SwiftUI
 
 struct DocumentEditorScreen: View {
 
-    // MARK: - Properties
+    // MARK: - ViewModel
 
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: DocumentEditorViewModel
-    private let onSaved: (() -> Void)?
-
-    // MARK: - Initialization
-
-    init(
-        type: DocumentType,
-        repository: DocumentsRepositoryProtocol,
-        onSaved: (() -> Void)? = nil
-    ) {
-        self.onSaved = onSaved
-        _viewModel = StateObject(
-            wrappedValue: DocumentEditorViewModel(
-                type: type,
-                repository: repository
-            )
-        )
-    }
-
-    init(
-        document: BusinessDocument,
-        repository: DocumentsRepositoryProtocol,
-        onSaved: (() -> Void)? = nil
-    ) {
-        self.onSaved = onSaved
-        _viewModel = StateObject(
-            wrappedValue: DocumentEditorViewModel(
-                document: document,
-                repository: repository
-            )
-        )
-    }
+    @ObservedObject var viewModel: DocumentEditorViewModel
 
     // MARK: - Body
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                screenHeader
-                metaSection
+                headerSection
+                documentMetaSection
                 sellerSection
                 buyerSection
                 itemsSection
                 totalsSection
                 notesSection
-                saveActionBlock
+                saveActionSection
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .scrollIndicators(.hidden)
-        .onChange(of: viewModel.didSave) { didSave in
-            guard didSave else { return }
-            onSaved?()
-            dismiss()
-        }
     }
 
-    // MARK: - Sections
+    // MARK: - Header Section
 
-    private var screenHeader: some View {
+    private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(screenTitle)
                 .font(.title.weight(.bold))
@@ -78,7 +41,9 @@ struct DocumentEditorScreen: View {
         }
     }
 
-    private var metaSection: some View {
+    // MARK: - Document Meta Section
+
+    private var documentMetaSection: some View {
         sectionCard(title: "Документ") {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
@@ -106,6 +71,8 @@ struct DocumentEditorScreen: View {
         }
     }
 
+    // MARK: - Seller Section
+
     private var sellerSection: some View {
         sectionCard(title: "Продавец") {
             TextField("Название продавца или исполнителя", text: sellerNameBinding)
@@ -113,12 +80,16 @@ struct DocumentEditorScreen: View {
         }
     }
 
+    // MARK: - Buyer Section
+
     private var buyerSection: some View {
         sectionCard(title: "Покупатель") {
             TextField("Название покупателя или клиента", text: buyerNameBinding)
                 .textFieldStyle(.roundedBorder)
         }
     }
+
+    // MARK: - Items Section
 
     private var itemsSection: some View {
         sectionCard(title: "Позиции") {
@@ -140,6 +111,8 @@ struct DocumentEditorScreen: View {
             }
         }
     }
+
+    // MARK: - Totals Section
 
     private var totalsSection: some View {
         sectionCard(title: "Итоги") {
@@ -171,6 +144,8 @@ struct DocumentEditorScreen: View {
         }
     }
 
+    // MARK: - Notes Section
+
     private var notesSection: some View {
         sectionCard(title: "Заметки") {
             TextField(
@@ -183,7 +158,9 @@ struct DocumentEditorScreen: View {
         }
     }
 
-    private var saveActionBlock: some View {
+    // MARK: - Save Action Section
+
+    private var saveActionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let errorMessage = viewModel.errorMessage, errorMessage.isEmpty == false {
                 Text(errorMessage)
@@ -193,7 +170,7 @@ struct DocumentEditorScreen: View {
 
             Button {
                 Task {
-                    await viewModel.save()
+                    await viewModel.didTapSave()
                 }
             } label: {
                 HStack(spacing: 10) {
@@ -216,7 +193,7 @@ struct DocumentEditorScreen: View {
         .padding(.top, 4)
     }
 
-    // MARK: - Components
+    // MARK: - Screen Configuration
 
     private var screenTitle: String {
         switch viewModel.draft.type {
@@ -240,11 +217,21 @@ struct DocumentEditorScreen: View {
         }
     }
 
+    // MARK: - Display Formatting
+
     private var totalAmountText: String {
         let number = NSDecimalNumber(decimal: viewModel.totals.total)
         let formattedAmount = Self.amountFormatter.string(from: number) ?? number.stringValue
         return "\(formattedAmount) \(viewModel.draft.currencyCode)"
     }
+
+    private func itemAmountText(_ item: DocumentItem) -> String {
+        let number = NSDecimalNumber(decimal: item.amount)
+        let formattedAmount = Self.amountFormatter.string(from: number) ?? number.stringValue
+        return "\(formattedAmount) \(viewModel.draft.currencyCode)"
+    }
+
+    // MARK: - Field Bindings
 
     private var documentNumberBinding: Binding<String> {
         Binding(
@@ -289,6 +276,8 @@ struct DocumentEditorScreen: View {
         )
     }
 
+    // MARK: - Reusable Section UI
+
     private func sectionCard<Content: View>(
         title: String,
         @ViewBuilder content: () -> Content
@@ -312,6 +301,8 @@ struct DocumentEditorScreen: View {
         )
         .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 8)
     }
+
+    // MARK: - Item Editor UI
 
     private func itemEditorCard(_ item: DocumentItem) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -383,11 +374,7 @@ struct DocumentEditorScreen: View {
         )
     }
 
-    private func itemAmountText(_ item: DocumentItem) -> String {
-        let number = NSDecimalNumber(decimal: item.amount)
-        let formattedAmount = Self.amountFormatter.string(from: number) ?? number.stringValue
-        return "\(formattedAmount) \(viewModel.draft.currencyCode)"
-    }
+    // MARK: - Formatters
 
     private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -408,25 +395,165 @@ struct DocumentEditorScreen: View {
     }()
 }
 
-// MARK: - Previews
+// MARK: - Preview
 
-#Preview("Invoice") {
-    DocumentEditorScreen(
+#Preview("New Invoice") {
+    NavigationStack {
+        DocumentEditorScreen(
+            viewModel: DocumentEditorViewModel(
+                mode: .create(.invoice),
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository(documents: []),
+                documentFactory: DocumentFactory(),
+                documentValidator: DocumentValidator()
+            )
+        )
+    }
+}
+
+#Preview("New Act") {
+    NavigationStack {
+        DocumentEditorScreen(
+            viewModel: DocumentEditorViewModel(
+                mode: .create(.act),
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository(documents: []),
+                documentFactory: DocumentFactory(),
+                documentValidator: DocumentValidator()
+            )
+        )
+    }
+}
+
+#Preview("Edit Invoice") {
+    NavigationStack {
+        DocumentEditorScreen(
+            viewModel: DocumentEditorViewModel(
+                mode: .edit(PreviewDocumentFixtures.invoice),
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository(documents: [PreviewDocumentFixtures.invoice]),
+                documentFactory: DocumentFactory(),
+                documentValidator: DocumentValidator()
+            )
+        )
+    }
+}
+
+#Preview("Edit Delivery Note") {
+    NavigationStack {
+        DocumentEditorScreen(
+            viewModel: DocumentEditorViewModel(
+                mode: .edit(PreviewDocumentFixtures.deliveryNote),
+                router: PreviewDocumentsRouter(),
+                documentsRepository: InMemoryDocumentsRepository(documents: [PreviewDocumentFixtures.deliveryNote]),
+                documentFactory: DocumentFactory(),
+                documentValidator: DocumentValidator()
+            )
+        )
+    }
+}
+
+// MARK: - Preview Router
+
+private final class PreviewDocumentsRouter: DocumentsRouterProtocol {
+    func showCreateDocument(type: DocumentType) { }
+    func showEditDocument(document: BusinessDocument) { }
+    func showPreview(document: BusinessDocument) { }
+    func finishDocumentFlowAfterShare() { }
+    func dismiss() { }
+    func pop() { }
+}
+
+// MARK: - Preview Fixtures
+
+private enum PreviewDocumentFixtures {
+
+    static let invoice = BusinessDocument(
         type: .invoice,
-        repository: InMemoryDocumentsRepository()
+        number: "INV-2026-001",
+        date: Date(),
+        seller: seller,
+        buyer: alfaBuyer,
+        items: [
+            DocumentItem(
+                title: "Разработка интерфейса",
+                quantity: 1,
+                unit: "услуга",
+                price: 45_000
+            ),
+            DocumentItem(
+                title: "Подготовка PDF-документа",
+                quantity: 2,
+                unit: "час",
+                price: 3_500
+            )
+        ],
+        notes: "Оплата в течение 5 рабочих дней.",
+        currencyCode: "RUB",
+        status: .ready
     )
-}
 
-#Preview("Act") {
-    DocumentEditorScreen(
-        type: .act,
-        repository: InMemoryDocumentsRepository()
-    )
-}
-
-#Preview("Delivery Note") {
-    DocumentEditorScreen(
+    static let deliveryNote = BusinessDocument(
         type: .deliveryNote,
-        repository: InMemoryDocumentsRepository()
+        number: "DN-2026-008",
+        date: Date(),
+        seller: seller,
+        buyer: retailBuyer,
+        items: [
+            DocumentItem(
+                title: "Термопринтер",
+                quantity: 2,
+                unit: "шт",
+                price: 12_000
+            ),
+            DocumentItem(
+                title: "Рулоны чековой ленты",
+                quantity: 10,
+                unit: "шт",
+                price: 180
+            )
+        ],
+        notes: "Передача товара по адресу склада покупателя.",
+        currencyCode: "RUB",
+        status: .draft
+    )
+
+    static let seller = DocumentParty(
+        displayName: "ООО BillingFlow Studio",
+        taxID: "6678123456",
+        registrationNumber: "667801001",
+        address: "г. Москва, ул. Горького, 12",
+        bankName: "АО Т-Банк",
+        bankAccount: "40702810900000000001",
+        bankCode: "044525974",
+        contactName: "Иван Иванов",
+        phone: "+7 912 000-00-00",
+        email: "finance@billingflow.app"
+    )
+
+    static let alfaBuyer = DocumentParty(
+        displayName: "ООО Альфа",
+        taxID: "7701234567",
+        registrationNumber: "",
+        address: "г. Москва, ул. Тверская, 8",
+        bankName: "",
+        bankAccount: "",
+        bankCode: "",
+        contactName: "",
+        phone: "+7 999 123-45-67",
+        email: "pay@alfa.ru"
+    )
+
+    static let retailBuyer = DocumentParty(
+        displayName: "ООО Ритейл Плюс",
+        taxID: "5904123456",
+        registrationNumber: "",
+        address: "г. Челябинск, пр. Победы, 21",
+        bankName: "",
+        bankAccount: "",
+        bankCode: "",
+        contactName: "",
+        phone: "+7 951 300-40-50",
+        email: "office@retailplus.ru"
     )
 }

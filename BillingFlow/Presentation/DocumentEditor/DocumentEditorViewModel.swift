@@ -4,88 +4,85 @@ import Combine
 @MainActor
 final class DocumentEditorViewModel: ObservableObject {
 
-    // MARK: - Dependencies
+    // MARK: - Navigation
 
-    private let repository: DocumentsRepositoryProtocol
-    private let validator: DocumentValidator
+    private let router: DocumentsRouterProtocol
 
-    // MARK: - State
+    // MARK: - Data Dependencies
 
-    private let isEditingExistingDocument: Bool
+    private let documentsRepository: DocumentsRepositoryProtocol
+    private let documentFactory: DocumentFactory
+    private let documentValidator: DocumentValidator
+
+    // MARK: - Editing Mode
+
+    enum Mode {
+        case create(DocumentType)
+        case edit(BusinessDocument)
+    }
+
+    private let mode: Mode
+
+    // MARK: - Editable State
+
     @Published var draft: DocumentDraft
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
-    @Published private(set) var didSave = false
 
-    // MARK: - Computed Properties
+    // MARK: - Derived UI State
 
     var totals: DocumentTotals {
         draft.totals
     }
 
     var canSave: Bool {
-        validator.validate(document: readyDocument).isValid
+        documentValidator.validate(document: readyDocument).isValid
     }
 
     var isEditing: Bool {
-        isEditingExistingDocument
+        switch mode {
+        case .create:
+            return false
+        case .edit:
+            return true
+        }
     }
 
-    private var readyDocument: BusinessDocument {
-        draft.asBusinessDocument(status: .ready)
+    var navigationTitle: String {
+        switch draft.type {
+        case .invoice:
+            return isEditing ? "Редактирование счета" : "Новый счет"
+        case .act:
+            return isEditing ? "Редактирование акта" : "Новый акт"
+        case .deliveryNote:
+            return isEditing ? "Редактирование накладной" : "Новая накладная"
+        }
     }
 
     // MARK: - Initialization
 
     init(
-        type: DocumentType,
-        repository: DocumentsRepositoryProtocol,
-        factory: DocumentFactory,
-        validator: DocumentValidator
+        mode: Mode,
+        router: DocumentsRouterProtocol,
+        documentsRepository: DocumentsRepositoryProtocol,
+        documentFactory: DocumentFactory,
+        documentValidator: DocumentValidator
     ) {
-        self.repository = repository
-        self.validator = validator
-        self.isEditingExistingDocument = false
-        self.draft = factory.makeEmptyDraft(type: type)
+        self.mode = mode
+        self.router = router
+        self.documentsRepository = documentsRepository
+        self.documentFactory = documentFactory
+        self.documentValidator = documentValidator
+
+        switch mode {
+        case .create(let type):
+            self.draft = documentFactory.makeEmptyDraft(type: type)
+        case .edit(let document):
+            self.draft = Self.makeDraft(from: document)
+        }
     }
 
-    init(
-        document: BusinessDocument,
-        repository: DocumentsRepositoryProtocol,
-        factory: DocumentFactory,
-        validator: DocumentValidator
-    ) {
-        self.repository = repository
-        self.validator = validator
-        self.isEditingExistingDocument = true
-        self.draft = Self.makeDraft(from: document)
-    }
-
-    convenience init(
-        type: DocumentType,
-        repository: DocumentsRepositoryProtocol
-    ) {
-        self.init(
-            type: type,
-            repository: repository,
-            factory: DocumentFactory(),
-            validator: DocumentValidator()
-        )
-    }
-
-    convenience init(
-        document: BusinessDocument,
-        repository: DocumentsRepositoryProtocol
-    ) {
-        self.init(
-            document: document,
-            repository: repository,
-            factory: DocumentFactory(),
-            validator: DocumentValidator()
-        )
-    }
-
-    // MARK: - Updating Parties
+    // MARK: - Counterparty Editing Actions
 
     func updateSeller(_ seller: DocumentParty) {
         updateDraft { draft in
@@ -99,7 +96,7 @@ final class DocumentEditorViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Updating Draft
+    // MARK: - Document Metadata Actions
 
     func updateNotes(_ notes: String) {
         updateDraft { draft in
@@ -119,7 +116,7 @@ final class DocumentEditorViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Managing Items
+    // MARK: - Item Collection Actions
 
     func addItem() {
         updateDraft { draft in
@@ -134,7 +131,13 @@ final class DocumentEditorViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Updating Item Fields
+    func removeItem(id: UUID) {
+        updateDraft { draft in
+            draft.items.removeAll(where: { $0.id == id })
+        }
+    }
+
+    // MARK: - Item Field Editing Actions
 
     func updateItemTitle(id: UUID, title: String) {
         updateDraft { draft in
@@ -164,22 +167,14 @@ final class DocumentEditorViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Remove Item
+    // MARK: - Save Flow Actions
 
-    func removeItem(id: UUID) {
-        updateDraft { draft in
-            draft.items.removeAll(where: { $0.id == id })
-        }
-    }
-
-    // MARK: - Saving
-
-    func save() async {
+    func didTapSave() async {
         guard isSaving == false else { return }
 
         errorMessage = nil
 
-        let validationResult = validator.validate(document: readyDocument)
+        let validationResult = documentValidator.validate(document: readyDocument)
 
         guard validationResult.isValid else {
             errorMessage = validationResult.errors.first?.errorDescription ?? "Не удалось сохранить документ."
@@ -190,29 +185,27 @@ final class DocumentEditorViewModel: ObservableObject {
         defer { isSaving = false }
 
         do {
-            try await repository.save(document: readyDocument)
-            didSave = true
+            try await documentsRepository.save(document: readyDocument)
+            router.showPreview(document: readyDocument)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Navigation Actions
 
-    private func updateDraft(_ updates: (inout DocumentDraft) -> Void) {
-        updates(&draft)
-        draft.updatedAt = Date()
-        errorMessage = nil
-        didSave = false
+    func didTapPreview() {
+        router.showPreview(document: readyDocument)
     }
 
-    private func defaultUnit(for type: DocumentType) -> String {
-        switch type {
-        case .deliveryNote:
-            return "шт"
-        case .invoice, .act:
-            return ""
-        }
+    func didTapClose() {
+        router.dismiss()
+    }
+
+    // MARK: - Document Mapping
+
+    private var readyDocument: BusinessDocument {
+        draft.asBusinessDocument(status: .ready)
     }
 
     private static func makeDraft(from document: BusinessDocument) -> DocumentDraft {
@@ -228,5 +221,24 @@ final class DocumentEditorViewModel: ObservableObject {
             currencyCode: document.currencyCode,
             updatedAt: Date()
         )
+    }
+
+    // MARK: - Draft Mutation Helpers
+
+    private func updateDraft(_ updates: (inout DocumentDraft) -> Void) {
+        updates(&draft)
+        draft.updatedAt = Date()
+        errorMessage = nil
+    }
+
+    // MARK: - Draft Defaults
+
+    private func defaultUnit(for type: DocumentType) -> String {
+        switch type {
+        case .deliveryNote:
+            return "шт"
+        case .invoice, .act:
+            return ""
+        }
     }
 }

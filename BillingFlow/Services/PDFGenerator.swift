@@ -1,7 +1,6 @@
 import Foundation
 import WebKit
 
-
 struct PDFGenerator {
 
     private let htmlRenderer: DocumentHTMLRenderer

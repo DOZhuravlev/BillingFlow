@@ -3,13 +3,17 @@ import WebKit
 
 final class PreviewContainerView: UIView, UIScrollViewDelegate {
 
-    // MARK: - Properties
+    // MARK: - Preview Container Views
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     private let webView: WKWebView
 
+    // MARK: - Preview Layout Constants
+
     private let paperSize = CGSize(width: 760, height: 1075)
+
+    // MARK: - Preview Rendering State
 
     private var currentHTML: String?
     private var lastBoundsSize: CGSize = .zero
@@ -33,7 +37,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: - Layout
+    // MARK: - Layout Updates
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -69,13 +73,15 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         setNeedsLayout()
     }
 
-    // MARK: - Setup
+    // MARK: - WebView Configuration
 
     private static func makeWebViewConfiguration() -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         return config
     }
+
+    // MARK: - View Hierarchy Setup
 
     private func setupLayout() {
         backgroundColor = .clear
@@ -96,6 +102,8 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
 
         webView.isUserInteractionEnabled = false
     }
+
+    // MARK: - Scroll Configuration
 
     private func configureScroll() {
         scrollView.delegate = self
@@ -129,6 +137,8 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         doubleTap.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTap)
     }
+
+    // MARK: - Layout Calculation
 
     private func updateLayout() {
         contentView.frame = CGRect(origin: .zero, size: paperSize)
@@ -193,7 +203,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         didApplyInitialScale = true
     }
 
-    // MARK: - Centering
+    // MARK: - Content Positioning
 
     private func centerContent() {
         let boundsSize = scrollView.bounds.size
@@ -208,7 +218,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         )
     }
 
-    // MARK: - Double Tap
+    // MARK: - Gesture Handling
 
     @objc
     private func handleDoubleTap(_ recognizer: UITapGestureRecognizer) {
