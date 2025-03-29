@@ -21,16 +21,22 @@ struct DocumentsScreen: View {
                 .padding(.vertical, 16)
             }
             .scrollIndicators(.hidden)
+
+
+
+
         }
         .task {
             await viewModel.loadDocumentsIfNeeded()
         }
     }
 
+
+
     // MARK: - Background
 
     private var backgroundLayer: some View {
-        Color(.systemGroupedBackground)
+        AppColor.Brand.background
             .ignoresSafeArea()
     }
 
