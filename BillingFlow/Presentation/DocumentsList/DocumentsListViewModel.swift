@@ -6,7 +6,7 @@ final class DocumentsListViewModel: ObservableObject {
 
     // MARK: - Navigation
 
-    private let router: DocumentsRouterProtocol
+    private weak var coordinator: DocumentsCoordinatorProtocol?
 
     // MARK: - Data Dependencies
 
@@ -27,10 +27,10 @@ final class DocumentsListViewModel: ObservableObject {
     // MARK: - Initialization
 
     init(
-        router: DocumentsRouterProtocol,
+        coordinator: DocumentsCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol
     ) {
-        self.router = router
+        self.coordinator = coordinator
         self.documentsRepository = documentsRepository
     }
 
@@ -65,11 +65,11 @@ final class DocumentsListViewModel: ObservableObject {
     // MARK: - User Actions
 
     func didTapCreateDocument(type: DocumentType) {
-        router.showCreateDocument(type: type)
+        coordinator?.showCreateDocument(type: type)
     }
 
     func didTapDocument(document: BusinessDocument) {
-        router.showEditDocument(document: document)
+        coordinator?.showEditDocument(document: document)
     }
 
     // MARK: - Loading Logic

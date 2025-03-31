@@ -11,7 +11,7 @@ final class HomeViewModel: ObservableObject {
 
     // MARK: - Navigation
 
-    private let router: DocumentsRouterProtocol
+    private let router: DocumentsCoordinatorProtocol
 
     // MARK: - Data Dependencies
 
@@ -32,7 +32,7 @@ final class HomeViewModel: ObservableObject {
     // MARK: - Initialization
 
     init(
-        router: DocumentsRouterProtocol,
+        router: DocumentsCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
         summaryService: FinanceSummaryServiceProtocol,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()

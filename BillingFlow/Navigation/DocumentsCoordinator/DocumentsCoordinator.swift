@@ -1,15 +1,7 @@
 import UIKit
 
-protocol DocumentsRouterProtocol: AnyObject {
-    func showCreateDocument(type: DocumentType)
-    func showEditDocument(document: BusinessDocument)
-    func showPreview(document: BusinessDocument)
-    func finishDocumentFlowAfterShare()
-    func dismiss()
-    func pop()
-}
-
-final class DocumentsRouter: DocumentsRouterProtocol {
+@MainActor
+final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
 
     // MARK: - Navigation
 
@@ -26,9 +18,7 @@ final class DocumentsRouter: DocumentsRouterProtocol {
     private let documentHTMLRenderer: DocumentHTMLRenderer
     private let pdfGenerator: PDFGenerator
 
-    // MARK: - Flow Callbacks
-
-    var onDocumentsDidChange: (() -> Void)?
+    private weak var documentsListViewModel: DocumentsListViewModel?
 
     // MARK: - Initialization
 
@@ -46,6 +36,26 @@ final class DocumentsRouter: DocumentsRouterProtocol {
         self.documentValidator = documentValidator
         self.documentHTMLRenderer = documentHTMLRenderer
         self.pdfGenerator = pdfGenerator
+    }
+
+    // MARK: - Start coordinator
+
+    func start() {
+        let viewModel = DocumentsListViewModel(
+            coordinator: self,
+            documentsRepository: documentsRepository
+        )
+
+        documentsListViewModel = viewModel
+
+        let view = DocumentsScreen(viewModel: viewModel)
+
+        let controller = HostingController(
+            rootView: view,
+            navigationTitle: "Документы"
+        )
+
+        navigationController.viewControllers = [controller]
     }
 
 
@@ -112,14 +122,8 @@ final class DocumentsRouter: DocumentsRouterProtocol {
     // MARK: - Flow Completion
 
     func finishDocumentFlowAfterShare() {
-        guard let documentsController = navigationController.viewControllers.first else {
-            navigationController.popToRootViewController(animated: true)
-            onDocumentsDidChange?()
-            return
-        }
-
-        navigationController.popToViewController(documentsController, animated: true)
-        onDocumentsDidChange?()
+        navigationController.popToRootViewController(animated: true)
+        documentsListViewModel?.handleDocumentsDidChange()
     }
 
     // MARK: - Generic Navigation Actions

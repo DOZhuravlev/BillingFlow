@@ -453,7 +453,8 @@ private extension HomeScreen {
 
 // MARK: - Preview Router
 
-private final class PreviewDocumentsRouter: DocumentsRouterProtocol {
+private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
+    func start() { }
     func showCreateDocument(type: DocumentType) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }

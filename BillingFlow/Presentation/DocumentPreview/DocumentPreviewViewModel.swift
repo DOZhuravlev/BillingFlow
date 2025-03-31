@@ -6,7 +6,7 @@ final class DocumentPreviewViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let router: DocumentsRouterProtocol
+    private weak var coordinator: DocumentsCoordinatorProtocol?
     private let pdfGenerator: PDFGenerator
     private let htmlRenderer: DocumentHTMLRenderer
 
@@ -57,12 +57,12 @@ final class DocumentPreviewViewModel: ObservableObject {
 
     init(
         document: BusinessDocument,
-        router: DocumentsRouterProtocol,
+        router: DocumentsCoordinatorProtocol,
         htmlRenderer: DocumentHTMLRenderer,
         pdfGenerator: PDFGenerator
     ) {
         self.document = document
-        self.router = router
+        self.coordinator = router
         self.htmlRenderer = htmlRenderer
         self.pdfGenerator = pdfGenerator
     }
@@ -86,7 +86,7 @@ final class DocumentPreviewViewModel: ObservableObject {
     }
 
     func didFinishSharing() {
-        router.finishDocumentFlowAfterShare()
+        coordinator?.finishDocumentFlowAfterShare()
     }
 
     func didTapSignature() {

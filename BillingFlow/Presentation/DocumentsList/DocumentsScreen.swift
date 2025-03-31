@@ -198,7 +198,7 @@ struct DocumentsScreen: View {
     NavigationStack {
         DocumentsScreen(
             viewModel: DocumentsListViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: InMemoryDocumentsRepository()
             )
         )
@@ -209,7 +209,7 @@ struct DocumentsScreen: View {
     NavigationStack {
         DocumentsScreen(
             viewModel: DocumentsListViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: InMemoryDocumentsRepository(documents: [])
             )
         )
@@ -220,7 +220,7 @@ struct DocumentsScreen: View {
     NavigationStack {
         DocumentsScreen(
             viewModel: DocumentsListViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewFailureDocumentsRepository()
             )
         )
@@ -229,7 +229,11 @@ struct DocumentsScreen: View {
 
 // MARK: - Preview Router
 
-private final class PreviewDocumentsRouter: DocumentsRouterProtocol {
+private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
+    func start() {
+
+    }
+    
     func showCreateDocument(type: DocumentType) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }

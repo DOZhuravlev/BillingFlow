@@ -6,7 +6,7 @@ final class DocumentEditorViewModel: ObservableObject {
 
     // MARK: - Navigation
 
-    private let router: DocumentsRouterProtocol
+    private weak var coordinator: DocumentsCoordinatorProtocol?
 
     // MARK: - Data Dependencies
 
@@ -63,13 +63,13 @@ final class DocumentEditorViewModel: ObservableObject {
 
     init(
         mode: Mode,
-        router: DocumentsRouterProtocol,
+        router: DocumentsCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
         documentFactory: DocumentFactory,
         documentValidator: DocumentValidator
     ) {
         self.mode = mode
-        self.router = router
+        self.coordinator = router
         self.documentsRepository = documentsRepository
         self.documentFactory = documentFactory
         self.documentValidator = documentValidator
@@ -186,7 +186,7 @@ final class DocumentEditorViewModel: ObservableObject {
 
         do {
             try await documentsRepository.save(document: readyDocument)
-            router.showPreview(document: readyDocument)
+            coordinator?.showPreview(document: readyDocument)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -195,11 +195,11 @@ final class DocumentEditorViewModel: ObservableObject {
     // MARK: - Navigation Actions
 
     func didTapPreview() {
-        router.showPreview(document: readyDocument)
+        coordinator?.showPreview(document: readyDocument)
     }
 
     func didTapClose() {
-        router.dismiss()
+        coordinator?.dismiss()
     }
 
     // MARK: - Document Mapping
