@@ -1,16 +1,11 @@
 import SwiftUI
 
-struct StatePlaceholderView: View {
-
-    // MARK: - Input Data
-
+struct DocumentsStatePlaceholderView: View {
     let title: String
     let message: String
     let systemImage: String
     let buttonTitle: String
     let action: () -> Void
-
-    // MARK: - Body
 
     var body: some View {
         VStack(spacing: 14) {
@@ -24,15 +19,11 @@ struct StatePlaceholderView: View {
         .background(background)
     }
 
-    // MARK: - Icon
-
     private var icon: some View {
         Image(systemName: systemImage)
             .font(.system(size: 36, weight: .medium))
             .foregroundStyle(.secondary)
     }
-
-    // MARK: - Text Content
 
     private var textBlock: some View {
         VStack(spacing: 6) {
@@ -47,14 +38,10 @@ struct StatePlaceholderView: View {
         }
     }
 
-    // MARK: - Action Button
-
     private var actionButton: some View {
         Button(buttonTitle, action: action)
             .buttonStyle(.borderedProminent)
     }
-
-    // MARK: - Styling
 
     private var background: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)

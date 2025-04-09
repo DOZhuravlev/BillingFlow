@@ -1,10 +1,20 @@
 import SwiftUI
 
+enum AppLayout {
+    static let floatingTabBarHeight: CGFloat = 58
+    static let floatingTabBarBottomOffset: CGFloat = 20
+    static let floatingTabBarContentSpacing: CGFloat = 24
+
+    static var floatingTabBarBottomInset: CGFloat {
+        floatingTabBarHeight + floatingTabBarBottomOffset + floatingTabBarContentSpacing
+    }
+}
+
 struct HomeScreen: View {
 
-    // MARK: - ViewModel
-
     @ObservedObject var viewModel: HomeViewModel
+
+    @State private var scrollOffset: CGFloat = .zero
 
     // MARK: - Body
 
@@ -12,13 +22,23 @@ struct HomeScreen: View {
         ZStack {
             backgroundLayer
             ScrollView {
+                ScrollOffsetObserver { offset in
+                    scrollOffset = max(offset.y, 0)
+                }
+                .frame(width: 0, height: 0)
+
                 VStack(spacing: AppSpacing.lg) {
                     headerView
                     dashboardContentSection
                 }
-                .padding(.bottom, AppSpacing.xl)
+                .padding(.bottom, AppLayout.floatingTabBarBottomInset)
             }
             .scrollIndicators(.hidden)
+            .overlay(alignment: .top) {
+                topBlurOverlay
+                    .opacity(topBlurOpacity)
+                    .animation(.easeInOut(duration: 0.28), value: topBlurOpacity)
+            }
         }
         .task {
             await viewModel.loadDocumentsIfNeeded()
@@ -26,9 +46,15 @@ struct HomeScreen: View {
     }
 }
 
-// MARK: - Main Sections
+// MARK: - Layout
 
 private extension HomeScreen {
+
+    var backgroundLayer: some View {
+        AppColor.Brand.background
+            .ignoresSafeArea()
+    }
+
     var dashboardContentSection: some View {
         Group {
             switch viewModel.state {
@@ -50,7 +76,11 @@ private extension HomeScreen {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
+// MARK: - Header
+
+private extension HomeScreen {
 
     var headerView: some View {
         HStack(spacing: 10) {
@@ -65,44 +95,61 @@ private extension HomeScreen {
 
             Spacer()
 
-            Button {
+            notificationButton
+            profileAvatar
+        }
+        .frame(height: 50)
+        .padding(.horizontal)
+    }
 
-            } label: {
-                Image(systemName: "bell.fill")
-                    .frame(width: 40, height: 40)
-                    .foregroundStyle(.white)
-                    .background {
-                        Circle()
-                            .fill(.white.opacity(0.15))
+    var notificationButton: some View {
+        Button {
 
-                            .blur(radius: 1)
-                    }
-                    .overlay {
-                        Circle()
-                            .stroke(.white, lineWidth: 1)
-                    }
-                    .clipShape(Circle())
-            }
-
-            Text("Д")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.white.opacity(0.18))
+        } label: {
+            Image(systemName: "bell.fill")
                 .frame(width: 40, height: 40)
                 .foregroundStyle(.white)
-
+                .background {
+                    Circle()
+                        .fill(.white.opacity(0.15))
+                        .blur(radius: 1)
+                }
                 .overlay {
                     Circle()
-                        .stroke(.white, style: .init(lineWidth: 1))
+                        .stroke(.white, lineWidth: 1)
                 }
                 .clipShape(Circle())
         }
-        .padding()
     }
 
+    var profileAvatar: some View {
+        Text("Д")
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.white.opacity(0.18))
+            .frame(width: 40, height: 40)
+            .overlay {
+                Circle()
+                    .stroke(.white, style: .init(lineWidth: 1))
+            }
+            .clipShape(Circle())
+    }
+}
 
-    private var summaryCardsSection: some View {
+// MARK: - Dashboard
+
+private extension HomeScreen {
+
+    var loadedDashboardView: some View {
+        VStack(spacing: AppSpacing.lg) {
+            summaryCardsSection
+            recentDocumentsSection
+            topOrganizationsSection
+        }
+    }
+
+    var summaryCardsSection: some View {
         HStack(spacing: AppSpacing.md) {
             ForEach(viewModel.financeMetrics) { metric in
                 BalanceSummaryCard(metric: metric)
@@ -111,9 +158,10 @@ private extension HomeScreen {
         .padding(.horizontal)
     }
 
-    private var recentDocumentsSection: some View {
+    var recentDocumentsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             sectionHeader("Документы")
+
             VStack(spacing: AppSpacing.sm) {
                 ForEach(viewModel.recentDocuments) { document in
                     BillGroupCard(
@@ -136,9 +184,7 @@ private extension HomeScreen {
 
     var topOrganizationsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-
             sectionHeader("Частые контрагенты")
-            
 
             VStack(spacing: AppSpacing.sm) {
                 ForEach(viewModel.topOrganizations) { organization in
@@ -148,44 +194,20 @@ private extension HomeScreen {
         }
         .padding(.horizontal, AppSpacing.md)
         .background {
-
             RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-
                 .fill(.ultraThinMaterial)
-
                 .overlay {
-
                     RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-
                         .stroke(.white.opacity(0.35), lineWidth: 1)
-
                 }
-
                 .shadow(color: .black.opacity(0.14), radius: 24, x: 0, y: 12)
-
         }
     }
-
-    // MARK: - Background
-
-    private var backgroundLayer: some View {
-        AppColor.Brand.background
-            .ignoresSafeArea()
-    }
 }
-
 
 // MARK: - States
 
 private extension HomeScreen {
-
-    var loadedDashboardView: some View {
-        VStack(spacing: AppSpacing.lg) {
-            summaryCardsSection
-            recentDocumentsSection
-            topOrganizationsSection
-        }
-    }
 
     var idleStateView: some View {
         Color.clear
@@ -266,88 +288,9 @@ private extension HomeScreen {
         }
         .padding(.horizontal, AppSpacing.md)
     }
-
 }
 
-// MARK: - Components
-
-private extension HomeScreen {
-
-    func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(AppFont.Text.headline)
-                .foregroundStyle(.white)
-
-            Spacer()
-
-            Text("Все")
-                .font(AppFont.Text.headline)
-                .foregroundStyle(.white)
-        }
-        .padding(.horizontal)
-    }
-
-
-       func organizationRow(_ organization: TopOrganizationMetric) -> some View {
-
-           Button {
-
-           } label: {
-
-               HStack(spacing: AppSpacing.sm) {
-                   Image(systemName: "briefcase.fill")
-
-                   VStack(alignment: .leading, spacing: 4) {
-                       Text(organization.name)
-                           .font(AppFont.Text.caption)
-                           .foregroundStyle(AppColor.Text.primary)
-                       HStack(spacing: 4) {
-                           Text("Счетов - \(organization.documentCount)")
-                               .font(AppFont.Text.caption)
-                               .foregroundStyle(AppColor.Text.secondary)
-                       }
-                   }
-
-                   Spacer()
-
-                   Image(systemName: "chevron.right")
-
-                       .font(.system(size: 13, weight: .bold))
-
-                       .foregroundStyle(AppColor.Text.secondary)
-
-               }
-               .padding(.horizontal, AppSpacing.sm)
-               .padding(.vertical, AppSpacing.sm)
-               .background {
-                   RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                       .fill(.white.opacity(0.38))
-                       .overlay {
-                           RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                               .stroke(.white.opacity(0.28), lineWidth: 1)
-                       }
-               }
-
-           }
-           .buttonStyle(.plain)
-
-
-       }
-
-       func documentIconName(for type: DocumentType) -> String {
-           switch type {
-           case .invoice:
-               return "doc.text.fill"
-           case .act:
-               return "checklist.checked"
-           case .deliveryNote:
-               return "shippingbox.fill"
-           }
-       }
-}
-
-// MARK: - Loading State
+// MARK: - Loading Skeleton
 
 private extension HomeScreen {
 
@@ -401,13 +344,118 @@ private extension HomeScreen {
     }
 }
 
+// MARK: - Overlay
+
+private extension HomeScreen {
+
+    var topBlurOverlay: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.14),
+                        Color.black.opacity(0.06),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(height: 90)
+            .mask {
+                LinearGradient(
+                    colors: [
+                        .black,
+                        .black.opacity(0.85),
+                        .black.opacity(0.35),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+
+            Spacer()
+        }
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
+    }
+
+    var topBlurOpacity: CGFloat {
+        let threshold: CGFloat = 2
+        let distance: CGFloat = 2
+        let progress = max((scrollOffset - threshold) / distance, 0)
+        return min(progress, 1)
+    }
+}
+
+// MARK: - Components
+
+private extension HomeScreen {
+
+    func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(AppFont.Text.headline)
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            Text("Все")
+                .font(AppFont.Text.headline)
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal)
+    }
+
+    func organizationRow(_ organization: TopOrganizationMetric) -> some View {
+        Button {
+
+        } label: {
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: "briefcase.fill")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(organization.name)
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.primary)
+
+                    Text("Счетов - \(organization.documentCount)")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(AppColor.Text.secondary)
+            }
+            .padding(.horizontal, AppSpacing.sm)
+            .padding(.vertical, AppSpacing.sm)
+            .background {
+                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                    .fill(.white.opacity(0.38))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                            .stroke(.white.opacity(0.28), lineWidth: 1)
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Loaded") {
     NavigationStack {
         HomeScreen(
             viewModel: HomeViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.loaded,
                 summaryService: MockFinanceSummaryService()
             )
@@ -419,7 +467,7 @@ private extension HomeScreen {
     NavigationStack {
         HomeScreen(
             viewModel: HomeViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.loading,
                 summaryService: MockFinanceSummaryService()
             )
@@ -431,7 +479,7 @@ private extension HomeScreen {
     NavigationStack {
         HomeScreen(
             viewModel: HomeViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.empty,
                 summaryService: MockFinanceSummaryService()
             )
@@ -443,7 +491,7 @@ private extension HomeScreen {
     NavigationStack {
         HomeScreen(
             viewModel: HomeViewModel(
-                router: PreviewDocumentsRouter(),
+                coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.failure,
                 summaryService: MockFinanceSummaryService()
             )
@@ -453,7 +501,39 @@ private extension HomeScreen {
 
 // MARK: - Preview Router
 
-private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
+private final class PreviewDocumentsRouter: HomeCoordinatorProtocol {
+    func showNotifications() {
+
+    }
+
+    func showProfile() {
+
+    }
+
+    func showDocument(_ document: BusinessDocument) {
+
+    }
+
+    func showDocumentPreview(_ document: BusinessDocument) {
+
+    }
+
+    func showAllDocuments() {
+
+    }
+
+    func showOrganization(_ organization: UUID) {
+
+    }
+
+    func showAllOrganizations() {
+
+    }
+
+    func showFinanceDetails(filter: HomeFinanceFilter) {
+
+    }
+
     func start() { }
     func showCreateDocument(type: DocumentType) { }
     func showEditDocument(document: BusinessDocument) { }

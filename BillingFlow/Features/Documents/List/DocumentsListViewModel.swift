@@ -1,16 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 final class DocumentsListViewModel: ObservableObject {
-
-    // MARK: - Navigation
-
-    private weak var coordinator: DocumentsCoordinatorProtocol?
-
-    // MARK: - Data Dependencies
-
-    private let documentsRepository: DocumentsRepositoryProtocol
 
     // MARK: - State
 
@@ -23,19 +15,74 @@ final class DocumentsListViewModel: ObservableObject {
     }
 
     @Published private(set) var state: State = .idle
+    @Published private(set) var filter = DocumentsFilter()
+
+    // MARK: - Dependencies
+
+    private weak var coordinator: DocumentsCoordinatorProtocol?
+    private let documentsRepository: DocumentsRepositoryProtocol
+    private let listGrouper: DocumentsListGrouper
+    private let documentItemMapper: DocumentsListItemMapper
 
     // MARK: - Initialization
 
     init(
         coordinator: DocumentsCoordinatorProtocol,
-        documentsRepository: DocumentsRepositoryProtocol
+        documentsRepository: DocumentsRepositoryProtocol,
+        listGrouper: DocumentsListGrouper = DocumentsListGrouper(),
+        documentItemMapper: DocumentsListItemMapper = DocumentsListItemMapper()
     ) {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
+        self.listGrouper = listGrouper
+        self.documentItemMapper = documentItemMapper
+    }
+}
+
+// MARK: - Display State
+
+extension DocumentsListViewModel {
+    var selectedCounterpartyTitle: String {
+        filter.counterpartyName ?? "Все контрагенты"
     }
 
-    // MARK: - Lifecycle
+    var hasAdvancedFilters: Bool {
+        filter.hasAdvancedFilters
+    }
 
+    var hasActiveFilters: Bool {
+        filter.hasActiveFilters
+    }
+
+    var activeFilterChips: [DocumentsFilterChipItem] {
+        filter.activeChips
+    }
+
+    var availableCounterparties: [DocumentsCounterpartyFilterItem] {
+        DocumentsCounterpartyFilterItem.makeItems(from: loadedDocuments)
+    }
+
+    var documentSections: [DocumentsListSection] {
+        listGrouper
+            .groupByMonth(filteredDocuments)
+            .map { section in
+                DocumentsListSection(
+                    key: section.key,
+                    title: section.title,
+                    items: section.documents.map { document in
+                        DocumentsListSectionItem(
+                            document: document,
+                            item: documentItemMapper.map(document)
+                        )
+                    }
+                )
+            }
+    }
+}
+
+// MARK: - Lifecycle
+
+extension DocumentsListViewModel {
     func loadDocumentsIfNeeded() async {
         guard case .idle = state else { return }
         await loadDocuments()
@@ -61,9 +108,11 @@ final class DocumentsListViewModel: ObservableObject {
             await reload()
         }
     }
-    
-    // MARK: - User Actions
+}
 
+// MARK: - User Actions
+
+extension DocumentsListViewModel {
     func didTapCreateDocument(type: DocumentType) {
         coordinator?.showCreateDocument(type: type)
     }
@@ -71,10 +120,45 @@ final class DocumentsListViewModel: ObservableObject {
     func didTapDocument(document: BusinessDocument) {
         coordinator?.showEditDocument(document: document)
     }
+}
 
-    // MARK: - Loading Logic
+// MARK: - Filter Actions
 
-    private func performLoad() async {
+extension DocumentsListViewModel {
+    func applyFilter(_ filter: DocumentsFilter) {
+        self.filter = filter
+    }
+
+    func selectCounterparty(_ counterparty: DocumentsCounterpartyFilterItem?) {
+        filter.counterpartyName = counterparty?.name
+    }
+
+    func resetAdvancedFilters() {
+        filter.resetAdvancedFilters()
+    }
+
+    func resetAllFilters() {
+        filter.resetAll()
+    }
+
+    func removeFilterChip(_ chip: DocumentsFilterChipItem) {
+        switch chip.kind {
+        case .type:
+            filter.type = .all
+
+        case .status:
+            filter.status = .all
+
+        case .period:
+            filter.period = .all
+        }
+    }
+}
+
+// MARK: - Loading Logic
+
+private extension DocumentsListViewModel {
+    func performLoad() async {
         do {
             let documents = try await documentsRepository.fetchDocuments()
 
@@ -86,5 +170,22 @@ final class DocumentsListViewModel: ObservableObject {
         } catch {
             state = .error(error.localizedDescription)
         }
+    }
+}
+
+// MARK: - Documents
+
+private extension DocumentsListViewModel {
+    var loadedDocuments: [BusinessDocument] {
+        guard case .loaded(let documents) = state else {
+            return []
+        }
+        return documents
+    }
+
+    var filteredDocuments: [BusinessDocument] {
+        loadedDocuments
+            .filter { filter.matches($0) }
+            .sorted { $0.date > $1.date }
     }
 }

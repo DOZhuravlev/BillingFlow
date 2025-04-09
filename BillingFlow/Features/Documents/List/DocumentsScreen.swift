@@ -2,9 +2,14 @@ import SwiftUI
 
 struct DocumentsScreen: View {
 
-    // MARK: - ViewModel
+    // MARK: - Dependencies
 
     @ObservedObject var viewModel: DocumentsListViewModel
+
+    // MARK: - State
+
+    @State private var isFilterSheetPresented = false
+    @State private var isCounterpartyPickerPresented = false
 
     // MARK: - Body
 
@@ -13,134 +18,223 @@ struct DocumentsScreen: View {
             backgroundLayer
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    quickActionsSection
+                LazyVStack(alignment: .leading, spacing: AppSpacing.lg) {
+                    headerView
+                    activeFiltersSection
                     documentsContentSection
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.top, AppSpacing.md)
+                .padding(.bottom, AppLayout.floatingTabBarBottomInset)
             }
             .scrollIndicators(.hidden)
-
-
-
-
+        }
+        .sheet(isPresented: $isFilterSheetPresented) {
+            filterSheet
+        }
+        .sheet(isPresented: $isCounterpartyPickerPresented) {
+            counterpartyPickerSheet
         }
         .task {
             await viewModel.loadDocumentsIfNeeded()
         }
     }
+}
 
+// MARK: - Layout
 
+private extension DocumentsScreen {
 
-    // MARK: - Background
-
-    private var backgroundLayer: some View {
+    var backgroundLayer: some View {
         AppColor.Brand.background
             .ignoresSafeArea()
     }
 
-    // MARK: - Quick Actions Section
-
-    private var quickActionsSection: some View {
-        HStack(spacing: 12) {
-            quickActionButton(
-                title: "Счет",
-                systemImage: "doc.text",
-                tint: .blue
-            ) {
-                viewModel.didTapCreateDocument(type: .invoice)
-            }
-
-            quickActionButton(
-                title: "Акт",
-                systemImage: "checkmark.seal",
-                tint: .green
-            ) {
-                viewModel.didTapCreateDocument(type: .act)
-            }
-
-            quickActionButton(
-                title: "Накладная",
-                systemImage: "shippingbox",
-                tint: .orange
-            ) {
-                viewModel.didTapCreateDocument(type: .deliveryNote)
-            }
-        }
-    }
-
-    // MARK: - Documents Content Section
-
-    private var documentsContentSection: some View {
+    var documentsContentSection: some View {
         Group {
             switch viewModel.state {
             case .idle:
-                idleStateView
+                EmptyView()
 
             case .loading:
-                loadingStateView
+                loadingView
 
             case .empty:
-                emptyStateView
+                emptyDocumentsView
 
             case .error(let message):
-                errorStateView(message: message)
+                errorView(message)
 
-            case .loaded(let documents):
-                documentsList(documents)
+            case .loaded:
+                loadedDocumentsView
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    // MARK: - State Views
+// MARK: - Header & Filters
 
-    private var idleStateView: some View {
-        StatePlaceholderView(
-            title: "Документы еще не загружены",
-            message: "Нажмите повторить, чтобы получить список документов.",
-            systemImage: "doc.text.magnifyingglass",
-            buttonTitle: "Загрузить",
-            action: {
-                Task {
-                    await viewModel.reload()
-                }
+private extension DocumentsScreen {
+
+    var headerView: some View {
+        DocumentsHeaderView(
+            counterpartyTitle: viewModel.selectedCounterpartyTitle,
+            hasActiveFilters: viewModel.hasAdvancedFilters,
+            onCounterpartyTap: {
+                isCounterpartyPickerPresented = true
+            },
+            onSearchTap: {
+                // search later
+            },
+            onFilterTap: {
+                isFilterSheetPresented = true
             }
         )
     }
 
-    private var loadingStateView: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-                .controlSize(.large)
-
-            Text("Загружаем документы...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    @ViewBuilder
+    var activeFiltersSection: some View {
+        if viewModel.hasAdvancedFilters {
+            DocumentsActiveFilterChipsView(
+                chips: viewModel.activeFilterChips,
+                onRemove: { chip in
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        viewModel.removeFilterChip(chip)
+                    }
+                },
+                onReset: {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        viewModel.resetAdvancedFilters()
+                    }
+                }
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
-        .frame(maxWidth: .infinity, minHeight: 320)
+    }
+}
+
+// MARK: - Documents List
+
+private extension DocumentsScreen {
+
+    @ViewBuilder
+    var loadedDocumentsView: some View {
+        if viewModel.documentSections.isEmpty {
+            if viewModel.hasActiveFilters {
+                filteredEmptyView
+            } else {
+                emptyDocumentsView
+            }
+        } else {
+            groupedDocumentsList
+        }
     }
 
-    private var emptyStateView: some View {
-        StatePlaceholderView(
+    var groupedDocumentsList: some View {
+        LazyVStack(alignment: .leading, spacing: AppSpacing.lg) {
+            ForEach(viewModel.documentSections) { section in
+                DocumentsMonthSectionView(
+                    section: section,
+                    onDocumentTap: { document in
+                        viewModel.didTapDocument(document: document)
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Sheets
+
+private extension DocumentsScreen {
+
+    var filterSheet: some View {
+        DocumentsFilterSheetView(filter: filterBinding)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+    }
+
+    var counterpartyPickerSheet: some View {
+        DocumentsCounterpartyPickerSheetView(
+            counterparties: viewModel.availableCounterparties,
+            selectedCounterpartyName: viewModel.filter.counterpartyName,
+            onSelect: { counterparty in
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    viewModel.selectCounterparty(counterparty)
+                }
+
+                isCounterpartyPickerPresented = false
+            }
+        )
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Bindings
+
+private extension DocumentsScreen {
+
+    var filterBinding: Binding<DocumentsFilter> {
+        Binding(
+            get: {
+                viewModel.filter
+            },
+            set: { filter in
+                viewModel.applyFilter(filter)
+            }
+        )
+    }
+}
+
+// MARK: - States
+
+private extension DocumentsScreen {
+
+    var loadingView: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .tint(.white)
+
+            Text("Загружаем документы")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.78))
+        }
+        .frame(maxWidth: .infinity, minHeight: 260)
+    }
+
+    var emptyDocumentsView: some View {
+        DocumentsStatePlaceholderView(
             title: "Документов пока нет",
-            message: "Создайте первый документ через быстрые действия сверху.",
-            systemImage: "tray",
-            buttonTitle: "Обновить",
+            message: "Создайте первый счёт, акт или накладную.",
+            systemImage: "doc.badge.plus",
+            buttonTitle: "Создать счёт",
             action: {
-                Task {
-                    await viewModel.reload()
+                viewModel.didTapCreateDocument(type: .invoice)
+            }
+        )
+    }
+
+    var filteredEmptyView: some View {
+        DocumentsStatePlaceholderView(
+            title: "Ничего не найдено",
+            message: "Попробуйте изменить или сбросить фильтры.",
+            systemImage: "line.3.horizontal.decrease.circle",
+            buttonTitle: "Сбросить фильтры",
+            action: {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    viewModel.resetAllFilters()
                 }
             }
         )
     }
 
-    private func errorStateView(message: String) -> some View {
-        StatePlaceholderView(
-            title: "Не удалось загрузить",
+    func errorView(_ message: String) -> some View {
+        DocumentsStatePlaceholderView(
+            title: "Не удалось загрузить документы",
             message: message,
-            systemImage: "wifi.exclamationmark",
+            systemImage: "exclamationmark.triangle",
             buttonTitle: "Повторить",
             action: {
                 Task {
@@ -148,47 +242,6 @@ struct DocumentsScreen: View {
                 }
             }
         )
-    }
-
-    // MARK: - Documents List
-
-    private func documentsList(_ documents: [BusinessDocument]) -> some View {
-        LazyVStack(spacing: 18) {
-            ForEach(documents) { document in
-                Button {
-                    viewModel.didTapDocument(document: document)
-                } label: {
-                    DocumentCardView(document: document)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // MARK: - Reusable Actions
-
-    private func quickActionButton(
-        title: String,
-        systemImage: String,
-        tint: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(tint.opacity(0.14))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(tint.opacity(0.12), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -227,13 +280,10 @@ struct DocumentsScreen: View {
     }
 }
 
-// MARK: - Preview Router
+// MARK: - Preview
 
 private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
-    func start() {
-
-    }
-    
+    func start() { }
     func showCreateDocument(type: DocumentType) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }

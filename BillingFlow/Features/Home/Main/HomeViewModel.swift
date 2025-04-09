@@ -1,23 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 final class HomeViewModel: ObservableObject {
-
-    @Published private(set) var state: State = .idle
-    @Published private(set) var financeMetrics: [FinanceMetric] = []
-    @Published private(set) var recentDocuments: [DocumentCardItem] = []
-    @Published private(set) var topOrganizations: [TopOrganizationMetric] = []
-
-    // MARK: - Navigation
-
-    private let router: DocumentsCoordinatorProtocol
-
-    // MARK: - Data Dependencies
-
-    private let documentsRepository: DocumentsRepositoryProtocol
-    private let summaryService: FinanceSummaryServiceProtocol
-    private let documentCardItemMapper: DocumentCardItemMapper
 
     // MARK: - State
 
@@ -29,22 +14,36 @@ final class HomeViewModel: ObservableObject {
         case error(String)
     }
 
+    @Published private(set) var state: State = .idle
+    @Published private(set) var financeMetrics: [FinanceMetric] = []
+    @Published private(set) var recentDocuments: [DocumentCardItem] = []
+    @Published private(set) var topOrganizations: [TopOrganizationMetric] = []
+
+    // MARK: - Dependencies
+
+    private weak var coordinator: HomeCoordinatorProtocol?
+    private let documentsRepository: DocumentsRepositoryProtocol
+    private let summaryService: FinanceSummaryServiceProtocol
+    private let documentCardItemMapper: DocumentCardItemMapper
+
     // MARK: - Initialization
 
     init(
-        router: DocumentsCoordinatorProtocol,
+        coordinator: HomeCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
         summaryService: FinanceSummaryServiceProtocol,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
     ) {
-        self.router = router
+        self.coordinator = coordinator
         self.documentsRepository = documentsRepository
         self.summaryService = summaryService
         self.documentCardItemMapper = documentCardItemMapper
     }
+}
 
-    // MARK: - Lifecycle
+// MARK: - Lifecycle
 
+extension HomeViewModel {
     func loadDocumentsIfNeeded() async {
         guard case .idle = state else { return }
         await loadDocuments()
@@ -62,108 +61,111 @@ final class HomeViewModel: ObservableObject {
         state = .loading
         await performLoad()
     }
+}
 
-    // MARK: - User Actions
+// MARK: - User Actions
 
+extension HomeViewModel {
     func didTapCreateDocument(type: DocumentType) {
-        router.showCreateDocument(type: type)
+        coordinator?.showCreateDocument(type: type)
     }
 
     func didTapDocument(document: BusinessDocument) {
-        router.showEditDocument(document: document)
+        coordinator?.showDocument(document)
     }
 
     func handleDocumentsDidChange() {
-         Task { [weak self] in
-             await self?.reload()
-         }
-     }
+        Task { [weak self] in
+            await self?.reload()
+        }
+    }
 }
 
+// MARK: - Loading Logic
+
 private extension HomeViewModel {
+    func performLoad() async {
+        do {
+            let documents = try await documentsRepository.fetchDocuments()
 
-    private func performLoad() async {
-           do {
-               let documents = try await documentsRepository.fetchDocuments()
-               guard documents.isEmpty == false else {
-                   clearContent()
-                   state = .empty
-                   return
-               }
-               buildContent(from: documents)
-               state = .loaded
-           } catch {
-               clearContent()
-               state = .error(error.localizedDescription)
-           }
-       }
+            guard documents.isEmpty == false else {
+                clearContent()
+                state = .empty
+                return
+            }
 
-       private func buildContent(from documents: [BusinessDocument]) {
-           financeMetrics = makeFinanceMetrics(from: documents)
-           recentDocuments = makeRecentDocuments(from: documents)
-           topOrganizations = makeTopOrganizations(from: documents)
-       }
+            buildContent(from: documents)
+            state = .loaded
+        } catch {
+            clearContent()
+            state = .error(error.localizedDescription)
+        }
+    }
+}
 
-       private func makeFinanceMetrics(from documents: [BusinessDocument]) -> [FinanceMetric] {
-           let summary = summaryService.makeSummary(
-               documents: documents,
-               filter: .all
-           )
+// MARK: - Content Building
 
-           return [
-               FinanceMetric(
-                   title: "Получено",
-                   amount: CurrencyFormatter.rubleText(summary.receivedAmount),
-                   style: .income
-               ),
+private extension HomeViewModel {
+    func buildContent(from documents: [BusinessDocument]) {
+        financeMetrics = makeFinanceMetrics(from: documents)
+        recentDocuments = makeRecentDocuments(from: documents)
+        topOrganizations = makeTopOrganizations(from: documents)
+    }
 
-               FinanceMetric(
-                   title: "Ожидает оплаты",
-                   amount: CurrencyFormatter.rubleText(summary.pendingAmount),
-                   style: .pending
-               )
-           ]
-       }
+    func makeFinanceMetrics(from documents: [BusinessDocument]) -> [FinanceMetric] {
+        let summary = summaryService.makeSummary(
+            documents: documents,
+            filter: .all
+        )
 
-    private func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
+        return [
+            FinanceMetric(
+                title: "Получено",
+                amount: CurrencyFormatter.rubleText(summary.receivedAmount),
+                style: .income
+            ),
+            FinanceMetric(
+                title: "Ожидает оплаты",
+                amount: CurrencyFormatter.rubleText(summary.pendingAmount),
+                style: .pending
+            )
+        ]
+    }
+
+    func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
         documents
             .sorted { $0.date > $1.date }
             .prefix(3)
             .map(documentCardItemMapper.map)
     }
 
-    private func makeTopOrganizations(from documents: [BusinessDocument]) -> [TopOrganizationMetric] {
+    func makeTopOrganizations(from documents: [BusinessDocument]) -> [TopOrganizationMetric] {
+        // TODO: Replace with real grouping.
+        [
+            TopOrganizationMetric(
+                id: "mock-alfa",
+                name: "ООО Альфа",
+                documentCount: 8,
+                totalAmount: "185 000 ₽"
+            ),
+            TopOrganizationMetric(
+                id: "mock-vector",
+                name: "ООО Вектор",
+                documentCount: 5,
+                totalAmount: "92 500 ₽"
+            ),
+            TopOrganizationMetric(
+                id: "mock-petrov",
+                name: "ИП Петров П.П.",
+                documentCount: 3,
+                totalAmount: "74 000 ₽"
+            )
+        ]
+    }
 
-           // TODO: Replace with real grouping
-
-           [
-
-               TopOrganizationMetric(
-                   id: "mock-alfa",
-                   name: "ООО Альфа",
-                   documentCount: 8,
-                   totalAmount: "185 000 ₽"
-               ),
-
-               TopOrganizationMetric(
-                   id: "mock-vector",
-                   name: "ООО Вектор",
-                   documentCount: 5,
-                   totalAmount: "92 500 ₽"
-               ),
-
-               TopOrganizationMetric(
-                   id: "mock-petrov",
-                   name: "ИП Петров П.П.",
-                   documentCount: 3,
-                   totalAmount: "74 000 ₽"
-               )
-           ]
-       }
-
-       private func clearContent() {
-           financeMetrics = []
-           recentDocuments = []
-           topOrganizations = []
-       }
+    func clearContent() {
+        financeMetrics = []
+        recentDocuments = []
+        topOrganizations = []
+    }
 }
