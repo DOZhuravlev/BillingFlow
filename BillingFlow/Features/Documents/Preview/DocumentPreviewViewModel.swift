@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 final class DocumentPreviewViewModel: ObservableObject {
@@ -21,38 +21,6 @@ final class DocumentPreviewViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published var isShareSheetPresented = false
 
-    // MARK: - Derived UI
-
-    var renderedHTML: String {
-        (try? htmlRenderer.render(document: document)) ?? fallbackHTML
-    }
-
-    var buyerDisplayName: String {
-        document.buyer.displayName.isEmpty ? "Покупатель не указан" : document.buyer.displayName
-    }
-
-    var buyerTaxID: String {
-        document.buyer.taxID
-    }
-
-    var hasBuyerTaxID: Bool {
-        !buyerTaxID.isEmpty
-    }
-
-    var amountText: String {
-        let number = NSDecimalNumber(decimal: document.totals.total)
-        let formatted = Self.amountFormatter.string(from: number) ?? number.stringValue
-        return "\(formatted) \(document.currencyCode)"
-    }
-
-    var buttonTitle: String {
-        isGeneratingPDF ? "Готовим PDF..." : "Отправить счет"
-    }
-
-    var isSendDisabled: Bool {
-        isGeneratingPDF
-    }
-
     // MARK: - Initialization
 
     init(
@@ -66,9 +34,58 @@ final class DocumentPreviewViewModel: ObservableObject {
         self.htmlRenderer = htmlRenderer
         self.pdfGenerator = pdfGenerator
     }
+}
 
-    // MARK: - User Actions
+// MARK: - Display State
 
+extension DocumentPreviewViewModel {
+    var renderedHTML: String {
+        (try? htmlRenderer.render(document: document)) ?? fallbackHTML
+    }
+
+    var documentTitle: String {
+        let number = document.number.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard number.isEmpty == false else {
+            return "\(document.type.displayName) без номера"
+        }
+
+        return "\(document.type.displayName) №\(number)"
+    }
+
+    var documentSubtitle: String {
+        "\(document.type.displayName) от \(AppDateFormatter.documentDateText(document.date))"
+    }
+
+    var buyerDisplayName: String {
+        let name = document.buyer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "Покупатель не указан" : name
+    }
+
+    var buyerTaxIDText: String? {
+        let taxID = document.buyer.taxID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return taxID.isEmpty ? nil : "ИНН \(taxID)"
+    }
+
+    var totalText: String {
+        CurrencyFormatter.amountText(
+            document.totals.total,
+            currencyCode: document.currencyCode
+        )
+    }
+
+    var buttonTitle: String {
+        isGeneratingPDF ? "Готовим..." : "Отправить"
+    }
+
+    var isSendDisabled: Bool {
+        isGeneratingPDF
+    }
+}
+
+// MARK: - User Actions
+
+extension DocumentPreviewViewModel {
     func didTapSend() async {
         guard !isGeneratingPDF else { return }
 
@@ -92,20 +109,13 @@ final class DocumentPreviewViewModel: ObservableObject {
     func didTapSignature() {
         // TODO: router.showSignature()
     }
+}
 
-    // MARK: - Formatting
+// MARK: - Fallback
 
-    private static let amountFormatter: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.maximumFractionDigits = 2
-        f.groupingSeparator = " "
-        return f
-    }()
-
-    // MARK: - Fallback
-
-    private let fallbackHTML: String = """
+private extension DocumentPreviewViewModel {
+    var fallbackHTML: String {
+        """
     <!DOCTYPE html>
     <html lang="ru">
     <head>
@@ -137,8 +147,5 @@ final class DocumentPreviewViewModel: ObservableObject {
     </body>
     </html>
     """
-
+    }
 }
-
-
-

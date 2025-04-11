@@ -1,63 +1,31 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 final class DocumentEditorViewModel: ObservableObject {
-
-    // MARK: - Navigation
-
-    private weak var coordinator: DocumentsCoordinatorProtocol?
-
-    // MARK: - Data Dependencies
-
-    private let documentsRepository: DocumentsRepositoryProtocol
-    private let documentFactory: DocumentFactory
-    private let documentValidator: DocumentValidator
 
     // MARK: - Editing Mode
 
     enum Mode {
         case create(DocumentType)
+        case duplicate(BusinessDocument)
         case edit(BusinessDocument)
     }
 
     private let mode: Mode
 
-    // MARK: - Editable State
+    // MARK: - State
 
     @Published var draft: DocumentDraft
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
 
-    // MARK: - Derived UI State
+    // MARK: - Dependencies
 
-    var totals: DocumentTotals {
-        draft.totals
-    }
-
-    var canSave: Bool {
-        documentValidator.validate(document: readyDocument).isValid
-    }
-
-    var isEditing: Bool {
-        switch mode {
-        case .create:
-            return false
-        case .edit:
-            return true
-        }
-    }
-
-    var navigationTitle: String {
-        switch draft.type {
-        case .invoice:
-            return isEditing ? "Редактирование счета" : "Новый счет"
-        case .act:
-            return isEditing ? "Редактирование акта" : "Новый акт"
-        case .deliveryNote:
-            return isEditing ? "Редактирование накладной" : "Новая накладная"
-        }
-    }
+    private weak var coordinator: DocumentsCoordinatorProtocol?
+    private let documentsRepository: DocumentsRepositoryProtocol
+    private let documentFactory: DocumentFactory
+    private let documentValidator: DocumentValidator
 
     // MARK: - Initialization
 
@@ -77,13 +45,54 @@ final class DocumentEditorViewModel: ObservableObject {
         switch mode {
         case .create(let type):
             self.draft = documentFactory.makeEmptyDraft(type: type)
+
+        case .duplicate(let document):
+            self.draft = documentFactory.makeDuplicateDraft(from: document)
+
         case .edit(let document):
             self.draft = Self.makeDraft(from: document)
         }
     }
+}
 
-    // MARK: - Counterparty Editing Actions
+// MARK: - Derived State
 
+extension DocumentEditorViewModel {
+    var totals: DocumentTotals {
+        draft.totals
+    }
+
+    var canSave: Bool {
+        documentValidator.validate(document: readyDocument).isValid
+    }
+
+    var isEditing: Bool {
+        switch mode {
+        case .create, .duplicate:
+            return false
+
+        case .edit:
+            return true
+        }
+    }
+
+    var navigationTitle: String {
+        switch draft.type {
+        case .invoice:
+            return isEditing ? "Редактирование счета" : "Новый счет"
+
+        case .act:
+            return isEditing ? "Редактирование акта" : "Новый акт"
+
+        case .deliveryNote:
+            return isEditing ? "Редактирование накладной" : "Новая накладная"
+        }
+    }
+}
+
+// MARK: - Counterparty Actions
+
+extension DocumentEditorViewModel {
     func updateSeller(_ seller: DocumentParty) {
         updateDraft { draft in
             draft.seller = seller
@@ -95,9 +104,11 @@ final class DocumentEditorViewModel: ObservableObject {
             draft.buyer = buyer
         }
     }
+}
 
-    // MARK: - Document Metadata Actions
+// MARK: - Document Metadata Actions
 
+extension DocumentEditorViewModel {
     func updateNotes(_ notes: String) {
         updateDraft { draft in
             draft.notes = notes
@@ -110,14 +121,24 @@ final class DocumentEditorViewModel: ObservableObject {
         }
     }
 
+    func updateCurrencyCode(_ currencyCode: String) {
+        updateDraft { draft in
+            draft.currencyCode = currencyCode
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .uppercased()
+        }
+    }
+
     func updateNumber(_ number: String) {
         updateDraft { draft in
             draft.number = number.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
+}
 
-    // MARK: - Item Collection Actions
+// MARK: - Item Collection Actions
 
+extension DocumentEditorViewModel {
     func addItem() {
         updateDraft { draft in
             draft.items.append(
@@ -136,9 +157,11 @@ final class DocumentEditorViewModel: ObservableObject {
             draft.items.removeAll(where: { $0.id == id })
         }
     }
+}
 
-    // MARK: - Item Field Editing Actions
+// MARK: - Item Field Editing Actions
 
+extension DocumentEditorViewModel {
     func updateItemTitle(id: UUID, title: String) {
         updateDraft { draft in
             guard let index = draft.items.firstIndex(where: { $0.id == id }) else { return }
@@ -166,9 +189,11 @@ final class DocumentEditorViewModel: ObservableObject {
             draft.items[index].price = price
         }
     }
+}
 
-    // MARK: - Save Flow Actions
+// MARK: - Save Flow Actions
 
+extension DocumentEditorViewModel {
     func didTapSave() async {
         guard isSaving == false else { return }
 
@@ -191,9 +216,11 @@ final class DocumentEditorViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+}
 
-    // MARK: - Navigation Actions
+// MARK: - Navigation Actions
 
+extension DocumentEditorViewModel {
     func didTapPreview() {
         coordinator?.showPreview(document: readyDocument)
     }
@@ -201,14 +228,16 @@ final class DocumentEditorViewModel: ObservableObject {
     func didTapClose() {
         coordinator?.dismiss()
     }
+}
 
-    // MARK: - Document Mapping
+// MARK: - Document Mapping
 
-    private var readyDocument: BusinessDocument {
+private extension DocumentEditorViewModel {
+    var readyDocument: BusinessDocument {
         draft.asBusinessDocument(status: .ready)
     }
 
-    private static func makeDraft(from document: BusinessDocument) -> DocumentDraft {
+    static func makeDraft(from document: BusinessDocument) -> DocumentDraft {
         DocumentDraft(
             id: document.id,
             type: document.type,
@@ -222,21 +251,26 @@ final class DocumentEditorViewModel: ObservableObject {
             updatedAt: Date()
         )
     }
+}
 
-    // MARK: - Draft Mutation Helpers
+// MARK: - Draft Mutation Helpers
 
-    private func updateDraft(_ updates: (inout DocumentDraft) -> Void) {
+private extension DocumentEditorViewModel {
+    func updateDraft(_ updates: (inout DocumentDraft) -> Void) {
         updates(&draft)
         draft.updatedAt = Date()
         errorMessage = nil
     }
+}
 
-    // MARK: - Draft Defaults
+// MARK: - Draft Defaults
 
-    private func defaultUnit(for type: DocumentType) -> String {
+private extension DocumentEditorViewModel {
+    func defaultUnit(for type: DocumentType) -> String {
         switch type {
         case .deliveryNote:
             return "шт"
+
         case .invoice, .act:
             return ""
         }

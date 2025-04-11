@@ -16,7 +16,12 @@ struct DocumentConverter {
     // MARK: - Public API
 
     func duplicate(_ document: BusinessDocument) -> BusinessDocument {
-        makeDocumentCopy(from: document, targetType: document.type)
+        DocumentFactory(
+            idProvider: idProvider,
+            dateProvider: dateProvider
+        )
+        .makeDuplicateDraft(from: document)
+        .asBusinessDocument(status: .draft)
     }
 
     func convertToAct(from document: BusinessDocument) -> BusinessDocument {

@@ -118,7 +118,7 @@ extension DocumentsListViewModel {
     }
 
     func didTapDocument(document: BusinessDocument) {
-        coordinator?.showEditDocument(document: document)
+        coordinator?.showDetail(document: document)
     }
 }
 

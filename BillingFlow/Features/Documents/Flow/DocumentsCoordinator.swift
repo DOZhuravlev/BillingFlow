@@ -58,6 +58,24 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         navigationController.viewControllers = [controller]
     }
 
+    // MARK: - Document Detail Navigation
+
+    func showDetail(document: BusinessDocument) {
+        let viewModel = DocumentDetailViewModel(
+            document: document,
+            coordinator: self
+        )
+
+        let view = DocumentDetailScreen(viewModel: viewModel)
+        let controller = HostingController(
+            rootView: view,
+            navigationTitle: "Документ",
+            titleDisplayMode: .never
+        )
+
+        navigationController.pushViewController(controller, animated: true)
+    }
+
 
     // MARK: - Document Editor Navigation
 

@@ -2,134 +2,239 @@ import SwiftUI
 
 struct DocumentPreviewScreen: View {
 
-    // MARK: - ViewModel
+    // MARK: - Dependencies
 
     @ObservedObject var viewModel: DocumentPreviewViewModel
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            previewContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ZStack {
+            backgroundLayer
 
-            bottomPanel
+            VStack(spacing: AppSpacing.md) {
+                headerSection
+                previewSection
+                bottomPanel
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.md)
+            .padding(.bottom, AppSpacing.md)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .sheet(isPresented: $viewModel.isShareSheetPresented) {
             if let url = viewModel.pdfURL {
                 ShareSheet(
                     activityItems: [url],
-                    onComplete: {
-                        viewModel.didFinishSharing()
-                    }
+                    onComplete: viewModel.didFinishSharing
                 )
             }
         }
     }
+}
 
-    // MARK: - Preview Content
+// MARK: - Layout
 
-    private var previewContent: some View {
-        DocumentPreviewWebView(html: viewModel.renderedHTML)
-            .background(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color.black.opacity(0.10), radius: 16, x: 0, y: 6)
-            .padding(.horizontal, 14)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
-            .background(Color(.secondarySystemBackground))
+private extension DocumentPreviewScreen {
+
+    var backgroundLayer: some View {
+        AppColor.Brand.background
+            .ignoresSafeArea()
     }
+}
 
-    // MARK: - Bottom Panel
+// MARK: - Header
 
-    private var bottomPanel: some View {
-        VStack(spacing: 8) {
-            summaryBlock
-            signatureRow
-            sendButtonBlock
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 20)
-    }
+private extension DocumentPreviewScreen {
 
-    // MARK: - Summary UI
-
-    private var summaryBlock: some View {
+    var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(viewModel.amountText)
-                    .font(.system(size: 27, weight: .bold, design: .rounded))
+            Text(viewModel.documentTitle)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
 
-                Text("НДС не применяется")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            Text(viewModel.documentSubtitle)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(.white.opacity(0.72))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
+    }
+}
+
+// MARK: - Preview
+
+private extension DocumentPreviewScreen {
+
+    var previewSection: some View {
+        VStack(spacing: 0) {
+            previewToolbar
+            previewCanvas
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                .fill(.white.opacity(0.22))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                        .stroke(.white.opacity(0.32), lineWidth: 1)
+                }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 12)
+    }
+
+    var previewToolbar: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Label("Предпросмотр", systemImage: "doc.richtext")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.primary)
+
+            Spacer()
+
+            Text(viewModel.totalText)
+                .font(AppFont.Number.smallAmount)
+                .foregroundStyle(AppColor.Text.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, 10)
+        .background(.white.opacity(0.78))
+    }
+
+    var previewCanvas: some View {
+        DocumentPreviewWebView(html: viewModel.renderedHTML)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.white.opacity(0.84))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(.black.opacity(0.05))
+                    .frame(height: 1)
+            }
+    }
+}
+
+// MARK: - Bottom Panel
+
+private extension DocumentPreviewScreen {
+
+    var bottomPanel: some View {
+        MaterialCard(cornerRadius: AppRadius.lg, padding: AppSpacing.md) {
+            VStack(spacing: AppSpacing.md) {
+                summarySection
+                actionsSection
+                errorSection
+            }
+        }
+    }
+
+    var summarySection: some View {
+        HStack(alignment: .top, spacing: AppSpacing.md) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("К отправке")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+
+                Text(viewModel.totalText)
+                    .font(AppFont.Number.amount)
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(viewModel.buyerDisplayName)
-                    .font(.subheadline.weight(.semibold))
+            Spacer(minLength: AppSpacing.md)
 
-                if viewModel.hasBuyerTaxID {
-                    Text("ИНН: \(viewModel.buyerTaxID)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(viewModel.buyerDisplayName)
+                    .font(AppFont.Text.subheadline)
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.trailing)
+
+                if let buyerTaxIDText = viewModel.buyerTaxIDText {
+                    Text(buyerTaxIDText)
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .lineLimit(1)
                 }
             }
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1)))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    // MARK: - Signature Action
+    var actionsSection: some View {
+        HStack(spacing: AppSpacing.sm) {
+            secondaryActionButton(
+                title: "Подпись",
+                systemImage: "signature",
+                action: viewModel.didTapSignature
+            )
 
-    private var signatureRow: some View {
-        Button {
-            viewModel.didTapSignature()
-        } label: {
-            HStack {
-                Image(systemName: "signature")
-                Text("Подпись и печать")
-                Spacer()
-                Image(systemName: "chevron.right")
-            }
-            .padding()
+            sendButton
+        }
+    }
+
+    @ViewBuilder
+    var errorSection: some View {
+        if let errorMessage = viewModel.errorMessage, errorMessage.isEmpty == false {
+            Text(errorMessage)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Status.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+// MARK: - Components
+
+private extension DocumentPreviewScreen {
+
+    func secondaryActionButton(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(AppFont.Control.button)
+                .foregroundStyle(AppColor.Text.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background {
+                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                        .fill(.white.opacity(0.72))
+                }
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Send Button
-
-    private var sendButtonBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-
-            if let error = viewModel.errorMessage, !error.isEmpty {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            Button {
-                Task { await viewModel.didTapSend() }
-            } label: {
-                HStack {
-                    if viewModel.isGeneratingPDF {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "paperplane.fill")
-                    }
-
-                    Text(viewModel.buttonTitle)
+    var sendButton: some View {
+        Button {
+            Task { await viewModel.didTapSend() }
+        } label: {
+            HStack(spacing: AppSpacing.xs) {
+                if viewModel.isGeneratingPDF {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "paperplane.fill")
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+
+                Text(viewModel.buttonTitle)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(viewModel.isSendDisabled)
+            .font(AppFont.Control.button)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background {
+                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                    .fill(viewModel.isSendDisabled ? AppColor.Brand.primary.opacity(0.55) : AppColor.Brand.primary)
+            }
         }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isSendDisabled)
     }
 }
 
@@ -139,23 +244,22 @@ private struct ShareSheet: UIViewControllerRepresentable {
     let onComplete: () -> Void
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let vc = UIActivityViewController(
+        let viewController = UIActivityViewController(
             activityItems: activityItems,
             applicationActivities: nil
         )
 
-        vc.completionWithItemsHandler = { _, completed, _, _ in
+        viewController.completionWithItemsHandler = { _, completed, _, _ in
             if completed {
                 onComplete()
             }
         }
 
-        return vc
+        return viewController
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) { }
 }
-
 
 // MARK: - Preview
 
@@ -206,8 +310,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
                         )
                     ],
                     notes: "Оплата в течение 5 рабочих дней.",
-                    currencyCode: "RUB",
-                    status: .ready
+                    currencyCode: "RUB"
                 ),
                 router: PreviewDocumentsRouter(),
                 htmlRenderer: DocumentHTMLRenderer(),
@@ -219,6 +322,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
 private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
     func start() { }
+    func showDetail(document: BusinessDocument) { }
     func showCreateDocument(type: DocumentType) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }
