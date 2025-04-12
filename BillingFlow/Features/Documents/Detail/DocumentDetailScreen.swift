@@ -71,7 +71,7 @@ private extension DocumentDetailScreen {
 private extension DocumentDetailScreen {
 
     var actionsSection: some View {
-        HStack(spacing: AppSpacing.sm) {
+        VStack(spacing: AppSpacing.sm) {
             actionButton(
                 title: "Редактировать",
                 systemImage: "pencil",
@@ -79,12 +79,21 @@ private extension DocumentDetailScreen {
                 action: viewModel.didTapEdit
             )
 
-            actionButton(
-                title: "Предпросмотр",
-                systemImage: "doc.richtext",
-                style: .secondary,
-                action: viewModel.didTapPreview
-            )
+            HStack(spacing: AppSpacing.sm) {
+                actionButton(
+                    title: "Дублировать",
+                    systemImage: "doc.on.doc",
+                    style: .secondary,
+                    action: viewModel.didTapDuplicate
+                )
+
+                actionButton(
+                    title: "Предпросмотр",
+                    systemImage: "doc.richtext",
+                    style: .secondary,
+                    action: viewModel.didTapPreview
+                )
+            }
         }
     }
 }
@@ -455,6 +464,7 @@ private final class PreviewDocumentDetailRouter: DocumentsCoordinatorProtocol {
     func start() { }
     func showDetail(document: BusinessDocument) { }
     func showCreateDocument(type: DocumentType) { }
+    func showDuplicateDocument(document: BusinessDocument) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }
     func finishDocumentFlowAfterShare() { }

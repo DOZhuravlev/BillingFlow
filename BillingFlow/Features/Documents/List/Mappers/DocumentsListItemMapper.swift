@@ -32,7 +32,7 @@ struct DocumentsListItemMapper {
             return "checkmark.seal.fill"
 
         case .deliveryNote:
-            return "shippingbox.fill"
+            return "doc.text.magnifyingglass"
         }
     }
 
@@ -150,7 +150,7 @@ struct DocumentsListItemMapper {
             return "Заполните выполненные работы"
 
         case .deliveryNote:
-            return "Заполните товары и услуги"
+            return "Заполните товары, услуги и реквизиты"
         }
     }
 
@@ -163,7 +163,7 @@ struct DocumentsListItemMapper {
             return "Акт готов к отправке"
 
         case .deliveryNote:
-            return "Накладная готова к отправке"
+            return "Счёт-фактура готова к отправке"
         }
     }
 

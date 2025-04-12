@@ -8,6 +8,7 @@ protocol HomeCoordinatorProtocol: AnyObject {
     func showProfile()
 
     func showCreateDocument(type: DocumentType)
+    func showDuplicateDocument(_ document: BusinessDocument)
 
     func showDocument(_ document: BusinessDocument)
     func showDocumentPreview(_ document: BusinessDocument)

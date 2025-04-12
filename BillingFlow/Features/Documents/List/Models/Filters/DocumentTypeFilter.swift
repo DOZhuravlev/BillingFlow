@@ -17,7 +17,7 @@ enum DocumentTypeFilter: CaseIterable, Identifiable, Equatable {
         case .acts:
             return "Акты"
         case .deliveryNotes:
-            return "Накладные"
+            return "Счета-фактуры"
         }
     }
 
@@ -30,7 +30,7 @@ enum DocumentTypeFilter: CaseIterable, Identifiable, Equatable {
         case .acts:
             return "checkmark.seal"
         case .deliveryNotes:
-            return "shippingbox"
+            return "doc.text.magnifyingglass"
         }
     }
 

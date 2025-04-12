@@ -15,15 +15,14 @@ final class HomeViewModel: ObservableObject {
     }
 
     @Published private(set) var state: State = .idle
-    @Published private(set) var financeMetrics: [FinanceMetric] = []
     @Published private(set) var recentDocuments: [DocumentCardItem] = []
     @Published private(set) var topOrganizations: [TopOrganizationMetric] = []
+    @Published private(set) var latestDocument: BusinessDocument?
 
     // MARK: - Dependencies
 
     private weak var coordinator: HomeCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
-    private let summaryService: FinanceSummaryServiceProtocol
     private let documentCardItemMapper: DocumentCardItemMapper
 
     // MARK: - Initialization
@@ -31,12 +30,10 @@ final class HomeViewModel: ObservableObject {
     init(
         coordinator: HomeCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
-        summaryService: FinanceSummaryServiceProtocol,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
     ) {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
-        self.summaryService = summaryService
         self.documentCardItemMapper = documentCardItemMapper
     }
 }
@@ -63,11 +60,24 @@ extension HomeViewModel {
     }
 }
 
+// MARK: - Derived State
+
+extension HomeViewModel {
+    var canDuplicateLatestDocument: Bool {
+        latestDocument != nil
+    }
+}
+
 // MARK: - User Actions
 
 extension HomeViewModel {
     func didTapCreateDocument(type: DocumentType) {
         coordinator?.showCreateDocument(type: type)
+    }
+
+    func didTapDuplicateLatestDocument() {
+        guard let latestDocument else { return }
+        coordinator?.showDuplicateDocument(latestDocument)
     }
 
     func didTapDocument(document: BusinessDocument) {
@@ -107,29 +117,9 @@ private extension HomeViewModel {
 
 private extension HomeViewModel {
     func buildContent(from documents: [BusinessDocument]) {
-        financeMetrics = makeFinanceMetrics(from: documents)
+        latestDocument = documents.max(by: { $0.date < $1.date })
         recentDocuments = makeRecentDocuments(from: documents)
         topOrganizations = makeTopOrganizations(from: documents)
-    }
-
-    func makeFinanceMetrics(from documents: [BusinessDocument]) -> [FinanceMetric] {
-        let summary = summaryService.makeSummary(
-            documents: documents,
-            filter: .all
-        )
-
-        return [
-            FinanceMetric(
-                title: "Получено",
-                amount: CurrencyFormatter.rubleText(summary.receivedAmount),
-                style: .income
-            ),
-            FinanceMetric(
-                title: "Ожидает оплаты",
-                amount: CurrencyFormatter.rubleText(summary.pendingAmount),
-                style: .pending
-            )
-        ]
     }
 
     func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
@@ -164,7 +154,7 @@ private extension HomeViewModel {
     }
 
     func clearContent() {
-        financeMetrics = []
+        latestDocument = nil
         recentDocuments = []
         topOrganizations = []
     }

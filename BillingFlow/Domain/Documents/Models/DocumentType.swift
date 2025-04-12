@@ -12,7 +12,7 @@ enum DocumentType: String, CaseIterable, Codable, Hashable, Sendable {
         case .act:
             return "Акт"
         case .deliveryNote:
-            return "Накладная"
+            return "Счёт-фактура"
         }
     }
 }

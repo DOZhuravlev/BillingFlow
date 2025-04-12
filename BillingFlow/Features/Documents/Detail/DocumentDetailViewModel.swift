@@ -71,6 +71,10 @@ extension DocumentDetailViewModel {
         coordinator?.showEditDocument(document: document)
     }
 
+    func didTapDuplicate() {
+        coordinator?.showDuplicateDocument(document: document)
+    }
+
     func didTapPreview() {
         coordinator?.showPreview(document: document)
     }

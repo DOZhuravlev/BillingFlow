@@ -488,7 +488,7 @@ private extension DocumentEditorScreen {
             return "checkmark.seal.fill"
 
         case .deliveryNote:
-            return "shippingbox.fill"
+            return "doc.text.magnifyingglass"
         }
     }
 }
@@ -715,6 +715,7 @@ private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
     func start() { }
     func showDetail(document: BusinessDocument) { }
     func showCreateDocument(type: DocumentType) { }
+    func showDuplicateDocument(document: BusinessDocument) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }
     func finishDocumentFlowAfterShare() { }

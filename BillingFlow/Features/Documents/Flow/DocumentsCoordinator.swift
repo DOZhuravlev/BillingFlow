@@ -98,6 +98,25 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         navigationController.pushViewController(controller, animated: true)
     }
 
+    func showDuplicateDocument(document: BusinessDocument) {
+        let viewModel = DocumentEditorViewModel(
+            mode: .duplicate(document),
+            router: self,
+            documentsRepository: documentsRepository,
+            documentFactory: documentFactory,
+            documentValidator: documentValidator
+        )
+
+        let view = DocumentEditorScreen(viewModel: viewModel)
+        let controller = HostingController(
+            rootView: view,
+            navigationTitle: viewModel.navigationTitle,
+            titleDisplayMode: .never
+        )
+
+        navigationController.pushViewController(controller, animated: true)
+    }
+
     func showEditDocument(document: BusinessDocument) {
         let viewModel = DocumentEditorViewModel(
             mode: .edit(document),

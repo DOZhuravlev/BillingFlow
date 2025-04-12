@@ -207,7 +207,7 @@ private extension DocumentsScreen {
     var emptyDocumentsView: some View {
         DocumentsStatePlaceholderView(
             title: "Документов пока нет",
-            message: "Создайте первый счёт, акт или накладную.",
+            message: "Создайте первый счёт, акт или счёт-фактуру.",
             systemImage: "doc.badge.plus",
             buttonTitle: "Создать счёт",
             action: {
@@ -286,6 +286,7 @@ private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
     func start() { }
     func showDetail(document: BusinessDocument) { }
     func showCreateDocument(type: DocumentType) { }
+    func showDuplicateDocument(document: BusinessDocument) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }
     func finishDocumentFlowAfterShare() { }

@@ -85,7 +85,7 @@ extension DocumentEditorViewModel {
             return isEditing ? "Редактирование акта" : "Новый акт"
 
         case .deliveryNote:
-            return isEditing ? "Редактирование накладной" : "Новая накладная"
+            return isEditing ? "Редактирование счёта-фактуры" : "Новая счёт-фактура"
         }
     }
 }

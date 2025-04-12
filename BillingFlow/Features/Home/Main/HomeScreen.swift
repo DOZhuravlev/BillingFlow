@@ -143,19 +143,52 @@ private extension HomeScreen {
 
     var loadedDashboardView: some View {
         VStack(spacing: AppSpacing.lg) {
-            summaryCardsSection
+            quickActionsSection
             recentDocumentsSection
             topOrganizationsSection
         }
     }
 
-    var summaryCardsSection: some View {
-        HStack(spacing: AppSpacing.md) {
-            ForEach(viewModel.financeMetrics) { metric in
-                BalanceSummaryCard(metric: metric)
+    var quickActionsSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            sectionHeader("Быстро создать", showsAll: false)
+
+            LazyVGrid(columns: quickActionColumns, spacing: AppSpacing.sm) {
+                quickActionButton(
+                    title: "Создать счёт",
+                    iconName: "doc.badge.plus",
+                    style: .primary
+                ) {
+                    viewModel.didTapCreateDocument(type: .invoice)
+                }
+
+                quickActionButton(
+                    title: "Скопировать",
+                    iconName: "doc.on.doc",
+                    style: .secondary,
+                    isEnabled: viewModel.canDuplicateLatestDocument
+                ) {
+                    viewModel.didTapDuplicateLatestDocument()
+                }
+
+                quickActionButton(
+                    title: "Создать акт",
+                    iconName: "checkmark.seal",
+                    style: .secondary
+                ) {
+                    viewModel.didTapCreateDocument(type: .act)
+                }
+
+                quickActionButton(
+                    title: "Счёт-фактура",
+                    iconName: "doc.text.magnifyingglass",
+                    style: .secondary
+                ) {
+                    viewModel.didTapCreateDocument(type: .deliveryNote)
+                }
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, AppSpacing.md)
     }
 
     var recentDocumentsSection: some View {
@@ -216,7 +249,7 @@ private extension HomeScreen {
 
     var loadingStateView: some View {
         VStack(spacing: AppSpacing.lg) {
-            summaryCardsSkeleton
+            quickActionsSkeleton
             sectionSkeleton(title: "Недавние документы")
             sectionSkeleton(title: "Частые контрагенты")
         }
@@ -235,7 +268,7 @@ private extension HomeScreen {
                         .font(AppFont.Text.headline)
                         .foregroundStyle(.white)
 
-                    Text("Создайте первый счёт, акт или накладную — после этого здесь появится сводка.")
+                    Text("Создайте первый счёт, акт или счёт-фактуру — после этого здесь появится сводка.")
                         .font(AppFont.Text.caption)
                         .foregroundStyle(.white.opacity(0.75))
                         .multilineTextAlignment(.center)
@@ -294,10 +327,15 @@ private extension HomeScreen {
 
 private extension HomeScreen {
 
-    var summaryCardsSkeleton: some View {
-        HStack(spacing: AppSpacing.md) {
-            skeletonMetricCard
-            skeletonMetricCard
+    var quickActionsSkeleton: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            sectionHeader("Быстро создать", showsAll: false)
+
+            LazyVGrid(columns: quickActionColumns, spacing: AppSpacing.sm) {
+                ForEach(0..<4, id: \.self) { _ in
+                    skeletonMetricCard
+                }
+            }
         }
         .padding(.horizontal, AppSpacing.md)
     }
@@ -396,7 +434,19 @@ private extension HomeScreen {
 
 private extension HomeScreen {
 
-    func sectionHeader(_ title: String) -> some View {
+    enum QuickActionStyle {
+        case primary
+        case secondary
+    }
+
+    var quickActionColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: AppSpacing.sm),
+            GridItem(.flexible(), spacing: AppSpacing.sm)
+        ]
+    }
+
+    func sectionHeader(_ title: String, showsAll: Bool = true) -> some View {
         HStack {
             Text(title)
                 .font(AppFont.Text.headline)
@@ -404,11 +454,65 @@ private extension HomeScreen {
 
             Spacer()
 
-            Text("Все")
-                .font(AppFont.Text.headline)
-                .foregroundStyle(.white)
+            if showsAll {
+                Text("Все")
+                    .font(AppFont.Text.headline)
+                    .foregroundStyle(.white)
+            }
         }
         .padding(.horizontal)
+    }
+
+    func quickActionButton(
+        title: String,
+        iconName: String,
+        style: QuickActionStyle,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: iconName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 24, height: 24)
+
+                Text(title)
+                    .font(AppFont.Control.button)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(style == .primary ? .white : AppColor.Text.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .padding(.horizontal, AppSpacing.sm)
+            .background {
+                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                    .fill(quickActionBackground(style: style, isEnabled: isEnabled))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                            .stroke(.white.opacity(style == .primary ? 0.22 : 0.32), lineWidth: 1)
+                    }
+            }
+            .opacity(isEnabled ? 1 : 0.48)
+        }
+        .buttonStyle(.plain)
+        .disabled(isEnabled == false)
+    }
+
+    func quickActionBackground(style: QuickActionStyle, isEnabled: Bool) -> Color {
+        guard isEnabled else {
+            return .white.opacity(0.24)
+        }
+
+        switch style {
+        case .primary:
+            return AppColor.Brand.primary
+
+        case .secondary:
+            return .white.opacity(0.72)
+        }
     }
 
     func organizationRow(_ organization: TopOrganizationMetric) -> some View {
@@ -456,8 +560,7 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.loaded,
-                summaryService: MockFinanceSummaryService()
+                documentsRepository: PreviewDocumentsRepository.loaded
             )
         )
     }
@@ -468,8 +571,7 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.loading,
-                summaryService: MockFinanceSummaryService()
+                documentsRepository: PreviewDocumentsRepository.loading
             )
         )
     }
@@ -480,8 +582,7 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.empty,
-                summaryService: MockFinanceSummaryService()
+                documentsRepository: PreviewDocumentsRepository.empty
             )
         )
     }
@@ -492,8 +593,7 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.failure,
-                summaryService: MockFinanceSummaryService()
+                documentsRepository: PreviewDocumentsRepository.failure
             )
         )
     }
@@ -536,6 +636,7 @@ private final class PreviewDocumentsRouter: HomeCoordinatorProtocol {
 
     func start() { }
     func showCreateDocument(type: DocumentType) { }
+    func showDuplicateDocument(_ document: BusinessDocument) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }
     func finishDocumentFlowAfterShare() { }

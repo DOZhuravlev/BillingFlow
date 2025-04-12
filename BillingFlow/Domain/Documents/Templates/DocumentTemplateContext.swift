@@ -136,7 +136,7 @@ struct DocumentTemplateContext {
         case .act:
             return "Акт"
         case .deliveryNote:
-            return "Накладная"
+            return "Счет-фактура"
         }
     }
 

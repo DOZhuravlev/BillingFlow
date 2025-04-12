@@ -2,6 +2,8 @@ import Foundation
 
 struct DocumentCardItemMapper {
 
+    nonisolated init() { }
+
     func map(_ document: BusinessDocument) -> DocumentCardItem {
         DocumentCardItem(
             id: document.id,
@@ -25,7 +27,7 @@ struct DocumentCardItemMapper {
         case .act:
             return "checkmark.seal.fill"
         case .deliveryNote:
-            return "shippingbox.fill"
+            return "doc.text.magnifyingglass"
         }
     }
 
@@ -73,4 +75,3 @@ struct DocumentCardItemMapper {
         }
     }
 }
-
