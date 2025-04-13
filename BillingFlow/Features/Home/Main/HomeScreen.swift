@@ -96,7 +96,6 @@ private extension HomeScreen {
             Spacer()
 
             notificationButton
-            profileAvatar
         }
         .frame(height: 50)
         .padding(.horizontal)
@@ -122,19 +121,6 @@ private extension HomeScreen {
         }
     }
 
-    var profileAvatar: some View {
-        Text("Д")
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.white.opacity(0.18))
-            .frame(width: 40, height: 40)
-            .overlay {
-                Circle()
-                    .stroke(.white, style: .init(lineWidth: 1))
-            }
-            .clipShape(Circle())
-    }
 }
 
 // MARK: - Dashboard
@@ -153,42 +139,52 @@ private extension HomeScreen {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             sectionHeader("Быстро создать", showsAll: false)
 
-            LazyVGrid(columns: quickActionColumns, spacing: AppSpacing.sm) {
-                quickActionButton(
-                    title: "Создать счёт",
-                    iconName: "doc.badge.plus",
-                    style: .primary
-                ) {
-                    viewModel.didTapCreateDocument(type: .invoice)
-                }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.md) {
+                    quickActionButton(
+                        metric: FinanceMetric(
+                            title: "Создать счёт",
+                            amount: "Счёт",
+                            style: .income
+                        )
+                    ) {
+                        viewModel.didTapCreateDocument(type: .invoice)
+                    }
 
-                quickActionButton(
-                    title: "Скопировать",
-                    iconName: "doc.on.doc",
-                    style: .secondary,
-                    isEnabled: viewModel.canDuplicateLatestDocument
-                ) {
-                    viewModel.didTapDuplicateLatestDocument()
-                }
+                    quickActionButton(
+                        metric: FinanceMetric(
+                            title: "Скопировать",
+                            amount: "Копия",
+                            style: .neutral
+                        ),
+                        isEnabled: viewModel.canDuplicateLatestDocument
+                    ) {
+                        viewModel.didTapDuplicateLatestDocument()
+                    }
 
-                quickActionButton(
-                    title: "Создать акт",
-                    iconName: "checkmark.seal",
-                    style: .secondary
-                ) {
-                    viewModel.didTapCreateDocument(type: .act)
-                }
+                    quickActionButton(
+                        metric: FinanceMetric(
+                            title: "Создать акт",
+                            amount: "Акт",
+                            style: .pending
+                        )
+                    ) {
+                        viewModel.didTapCreateDocument(type: .act)
+                    }
 
-                quickActionButton(
-                    title: "Счёт-фактура",
-                    iconName: "doc.text.magnifyingglass",
-                    style: .secondary
-                ) {
-                    viewModel.didTapCreateDocument(type: .deliveryNote)
+                    quickActionButton(
+                        metric: FinanceMetric(
+                            title: "Счёт-фактура",
+                            amount: "Фактура",
+                            style: .debt
+                        )
+                    ) {
+                        viewModel.didTapCreateDocument(type: .deliveryNote)
+                    }
                 }
+                .padding(.horizontal, AppSpacing.md)
             }
         }
-        .padding(.horizontal, AppSpacing.md)
     }
 
     var recentDocumentsSection: some View {
@@ -331,13 +327,16 @@ private extension HomeScreen {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             sectionHeader("Быстро создать", showsAll: false)
 
-            LazyVGrid(columns: quickActionColumns, spacing: AppSpacing.sm) {
-                ForEach(0..<4, id: \.self) { _ in
-                    skeletonMetricCard
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.md) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        skeletonMetricCard
+                            .frame(width: 148)
+                    }
                 }
+                .padding(.horizontal, AppSpacing.md)
             }
         }
-        .padding(.horizontal, AppSpacing.md)
     }
 
     func sectionSkeleton(title: String) -> some View {
@@ -434,18 +433,6 @@ private extension HomeScreen {
 
 private extension HomeScreen {
 
-    enum QuickActionStyle {
-        case primary
-        case secondary
-    }
-
-    var quickActionColumns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: AppSpacing.sm),
-            GridItem(.flexible(), spacing: AppSpacing.sm)
-        ]
-    }
-
     func sectionHeader(_ title: String, showsAll: Bool = true) -> some View {
         HStack {
             Text(title)
@@ -464,55 +451,17 @@ private extension HomeScreen {
     }
 
     func quickActionButton(
-        title: String,
-        iconName: String,
-        style: QuickActionStyle,
+        metric: FinanceMetric,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: iconName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 24, height: 24)
-
-                Text(title)
-                    .font(AppFont.Control.button)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(style == .primary ? .white : AppColor.Text.primary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .padding(.horizontal, AppSpacing.sm)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(quickActionBackground(style: style, isEnabled: isEnabled))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                            .stroke(.white.opacity(style == .primary ? 0.22 : 0.32), lineWidth: 1)
-                    }
-            }
-            .opacity(isEnabled ? 1 : 0.48)
+            BalanceSummaryCard(metric: metric)
+                .frame(width: 148)
+                .opacity(isEnabled ? 1 : 0.48)
         }
         .buttonStyle(.plain)
         .disabled(isEnabled == false)
-    }
-
-    func quickActionBackground(style: QuickActionStyle, isEnabled: Bool) -> Color {
-        guard isEnabled else {
-            return .white.opacity(0.24)
-        }
-
-        switch style {
-        case .primary:
-            return AppColor.Brand.primary
-
-        case .secondary:
-            return .white.opacity(0.72)
-        }
     }
 
     func organizationRow(_ organization: TopOrganizationMetric) -> some View {

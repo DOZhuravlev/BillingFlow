@@ -56,17 +56,15 @@ struct AppRootView: View {
             .opacity(appCoordinator.selectedTab == .documents ? 1 : 0)
             .allowsHitTesting(appCoordinator.selectedTab == .documents)
 
-        //CounterpartiesFlowRootView(dependencies: appDependencies)
-        TestHomeFlowRootView(dependencies: dependencies)
+        OrganizationsFlowRootView(dependencies: dependencies)
             .ignoresSafeArea()
-            .opacity(appCoordinator.selectedTab == .counterparties ? 1 : 0)
-            .allowsHitTesting(appCoordinator.selectedTab == .counterparties)
+            .opacity(appCoordinator.selectedTab == .organizations ? 1 : 0)
+            .allowsHitTesting(appCoordinator.selectedTab == .organizations)
 
-        //MoreFlowRootView(dependencies: appDependencies)
-        EmptyView()
+        ProfileFlowRootView(dependencies: dependencies)
             .ignoresSafeArea()
-            .opacity(appCoordinator.selectedTab == .more ? 1 : 0)
-            .allowsHitTesting(appCoordinator.selectedTab == .more)
+            .opacity(appCoordinator.selectedTab == .profile ? 1 : 0)
+            .allowsHitTesting(appCoordinator.selectedTab == .profile)
 
     }
 

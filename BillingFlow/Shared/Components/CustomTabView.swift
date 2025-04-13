@@ -4,8 +4,8 @@ enum AppTab: Int, CaseIterable, Identifiable {
     case home
     case documents
     case createPlaceholder
-    case counterparties
-    case more
+    case organizations
+    case profile
 
     var id: Int { rawValue }
 
@@ -17,10 +17,10 @@ enum AppTab: Int, CaseIterable, Identifiable {
             "chart.line.uptrend.xyaxis"
         case .createPlaceholder:
             "plus"
-        case .counterparties:
-            "person.2.fill"
-        case .more:
-            "ellipsis"
+        case .organizations:
+            "building.2.fill"
+        case .profile:
+            "person.crop.circle.fill"
         }
     }
 }
@@ -34,8 +34,8 @@ struct CustomTabView: View {
         .documents
     ]
     private let rightTabs: [AppTab] = [
-        .counterparties,
-        .more
+        .organizations,
+        .profile
     ]
 
     init(
