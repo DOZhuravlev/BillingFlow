@@ -2,817 +2,874 @@ import SwiftUI
 
 struct DocumentEditorScreen: View {
 
-    // MARK: - Dependencies
+    // MARK: - State
 
-    @ObservedObject var viewModel: DocumentEditorViewModel
+    @StateObject private var viewModel: DocumentEditorViewModel
+
+    // MARK: - Initialization
+
+    init(viewModel: DocumentEditorViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            backgroundLayer
+            AppColor.Brand.background
+                .ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                    headerSection
-                    documentMetaSection
-                    sellerSection
-                    buyerSection
-                    itemsSection
-                    totalsSection
-                    notesSection
-                    saveActionSection
+            VStack(spacing: 0) {
+                header
+
+                ScrollView {
+                    VStack(spacing: AppSpacing.lg) {
+                        stepContent
+                        errorView
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.top, AppSpacing.md)
+                    .padding(.bottom, 112)
                 }
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.top, AppSpacing.md)
-                .padding(.bottom, AppLayout.floatingTabBarBottomInset)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
+
+            footer
         }
-    }
-}
-
-// MARK: - Layout
-
-private extension DocumentEditorScreen {
-
-    var backgroundLayer: some View {
-        AppColor.Brand.background
-            .ignoresSafeArea()
+        .task {
+            await viewModel.onAppear()
+        }
     }
 }
 
 // MARK: - Header
 
 private extension DocumentEditorScreen {
+    var header: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            HStack(spacing: AppSpacing.md) {
+                Button {
+                    viewModel.didTapClose()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(.white.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
 
-    var headerSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            HStack(alignment: .top, spacing: AppSpacing.md) {
-                documentTypeIcon
-
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.navigationTitle)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text(documentSubtitle)
+                    Text("\(viewModel.currentStep.rawValue + 1) из \(viewModel.steps.count) · \(viewModel.currentStep.title)")
                         .font(AppFont.Text.caption)
                         .foregroundStyle(.white.opacity(0.72))
                 }
 
                 Spacer()
             }
+
+            progressBar
+
+            stepTabs
         }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.top, AppSpacing.md)
+        .padding(.bottom, AppSpacing.sm)
     }
 
-    var documentTypeIcon: some View {
-        Image(systemName: iconName(for: viewModel.draft.type))
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 50, height: 50)
-            .background {
-                Circle()
-                    .fill(.white.opacity(0.16))
-            }
-            .overlay {
-                Circle()
-                    .stroke(.white.opacity(0.34), lineWidth: 1)
-            }
-    }
-
-    var documentSubtitle: String {
-        viewModel.isEditing ? "Измените данные документа и сохраните новую версию." : "Заполните реквизиты, позиции и подготовьте документ."
-    }
-}
-
-// MARK: - Document Meta
-
-private extension DocumentEditorScreen {
-
-    var documentMetaSection: some View {
-        editorSection(title: "Документ", iconName: "doc.text.fill") {
-            VStack(spacing: AppSpacing.md) {
-                HStack {
-                    typeBadge
-
-                    Spacer()
-                }
-
-                editorTextField(
-                    title: "Номер",
-                    placeholder: "Например, INV-001",
-                    text: documentNumberBinding
-                )
-
-                editorTextField(
-                    title: "Валюта",
-                    placeholder: "RUB",
-                    text: currencyCodeBinding
-                )
-
-                DatePicker(
-                    "Дата",
-                    selection: documentDateBinding,
-                    displayedComponents: .date
-                )
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.primary)
-                .datePickerStyle(.compact)
-            }
-        }
-    }
-
-    var typeBadge: some View {
-        Label(viewModel.draft.type.displayName, systemImage: iconName(for: viewModel.draft.type))
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(AppColor.Brand.primary)
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
-            .background {
+    var progressBar: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(AppColor.Brand.primary.opacity(0.10))
-            }
-    }
-}
+                    .fill(.white.opacity(0.36))
 
-// MARK: - Counterparties
-
-private extension DocumentEditorScreen {
-
-    var sellerSection: some View {
-        partySection(
-            title: "Продавец",
-            iconName: "building.2.fill",
-            party: viewModel.draft.seller,
-            update: viewModel.updateSeller
-        )
-    }
-
-    var buyerSection: some View {
-        partySection(
-            title: "Покупатель",
-            iconName: "person.crop.square.fill",
-            party: viewModel.draft.buyer,
-            update: viewModel.updateBuyer
-        )
-    }
-
-    func partySection(
-        title: String,
-        iconName: String,
-        party: DocumentParty,
-        update: @escaping (DocumentParty) -> Void
-    ) -> some View {
-        editorSection(title: title, iconName: iconName) {
-            VStack(spacing: AppSpacing.md) {
-                editorTextField(
-                    title: "Название",
-                    placeholder: title == "Продавец" ? "Название продавца или исполнителя" : "Название покупателя или клиента",
-                    text: partyBinding(party, update: update, keyPath: \.displayName)
-                )
-
-                editorTextField(
-                    title: "ИНН",
-                    placeholder: "7701234567",
-                    text: partyBinding(party, update: update, keyPath: \.taxID)
-                )
-
-                editorTextField(
-                    title: "Рег. номер",
-                    placeholder: "КПП / ОГРН",
-                    text: partyBinding(party, update: update, keyPath: \.registrationNumber)
-                )
-
-                editorTextField(
-                    title: "Адрес",
-                    placeholder: "Юридический адрес",
-                    text: partyBinding(party, update: update, keyPath: \.address),
-                    axis: .vertical
-                )
-
-                editorTextField(
-                    title: "Банк",
-                    placeholder: "Название банка",
-                    text: partyBinding(party, update: update, keyPath: \.bankName)
-                )
-
-                editorTextField(
-                    title: "Счёт",
-                    placeholder: "Расчётный счёт",
-                    text: partyBinding(party, update: update, keyPath: \.bankAccount)
-                )
-
-                editorTextField(
-                    title: "БИК",
-                    placeholder: "044525974",
-                    text: partyBinding(party, update: update, keyPath: \.bankCode)
-                )
-
-                editorTextField(
-                    title: "Контакт",
-                    placeholder: "Контактное лицо",
-                    text: partyBinding(party, update: update, keyPath: \.contactName)
-                )
-
-                editorTextField(
-                    title: "Телефон",
-                    placeholder: "+7 900 000-00-00",
-                    text: partyBinding(party, update: update, keyPath: \.phone)
-                )
-
-                editorTextField(
-                    title: "Email",
-                    placeholder: "email@example.com",
-                    text: partyBinding(party, update: update, keyPath: \.email)
-                )
+                Capsule()
+                    .fill(.white)
+                    .frame(width: proxy.size.width * viewModel.progress)
+                    .shadow(color: .white.opacity(0.45), radius: 6, x: 0, y: 0)
             }
         }
+        .frame(height: 6)
     }
-}
 
-// MARK: - Items
-
-private extension DocumentEditorScreen {
-
-    var itemsSection: some View {
-        editorSection(title: "Позиции", iconName: "list.bullet.rectangle.fill") {
-            VStack(alignment: .leading, spacing: AppSpacing.md) {
-                if viewModel.draft.items.isEmpty {
-                    emptyItemsPlaceholder
-                } else {
-                    ForEach(Array(viewModel.draft.items.enumerated()), id: \.element.id) { index, item in
-                        itemEditorCard(item, index: index)
+    var stepTabs: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: AppSpacing.xs) {
+                    ForEach(viewModel.steps) { step in
+                        Button {
+                            viewModel.goToStep(step)
+                        } label: {
+                            Text(step.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(step == viewModel.currentStep ? AppColor.Brand.primary : AppColor.Text.primary)
+                                .padding(.horizontal, 12)
+                                .frame(height: 30)
+                                .background {
+                                    Capsule()
+                                        .fill(step == viewModel.currentStep ? .white : .white.opacity(0.62))
+                                        .overlay {
+                                            Capsule()
+                                                .stroke(.white.opacity(step == viewModel.currentStep ? 0.9 : 0.28), lineWidth: 1)
+                                        }
+                                }
+                        }
+                        .id(step.id)
+                        .buttonStyle(.plain)
                     }
                 }
+            }
+            .scrollIndicators(.hidden)
+            .onAppear {
+                proxy.scrollTo(viewModel.currentStep.id, anchor: .center)
+            }
+            .onChange(of: viewModel.currentStep) { step in
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                    proxy.scrollTo(step.id, anchor: .center)
+                }
+            }
+        }
+    }
+}
 
-                addItemButton
+// MARK: - Step Content
+
+private extension DocumentEditorScreen {
+    @ViewBuilder
+    var stepContent: some View {
+        switch viewModel.currentStep {
+        case .type:
+            typeStep
+        case .seller:
+            partyStep(
+                title: "Кто выставляет счет",
+                subtitle: "Выберите продавца из организаций или заполните реквизиты вручную.",
+                party: viewModel.draft.seller,
+                onSelect: viewModel.selectSeller,
+                onUpdate: viewModel.updateSeller
+            )
+        case .buyer:
+            partyStep(
+                title: "Кому выставляем",
+                subtitle: "Покупатель подтянется из ранее добавленных и использованных организаций.",
+                party: viewModel.draft.buyer,
+                onSelect: viewModel.selectBuyer,
+                onUpdate: viewModel.updateBuyer
+            )
+        case .details:
+            detailsStep
+        case .items:
+            itemsStep
+        case .notes:
+            notesStep
+        case .review:
+            reviewStep
+        }
+    }
+
+    var typeStep: some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Начнем со счета",
+                subtitle: "Пока wizard реализован для счета. Остальные типы позже получат свои сценарии."
+            )
+
+            MaterialCard {
+                VStack(spacing: AppSpacing.md) {
+                    documentTypeRow(
+                        title: "Счет на оплату",
+                        subtitle: "Быстрое создание с продавцом, покупателем, позициями и НДС",
+                        icon: "doc.text.fill",
+                        isSelected: true,
+                        isEnabled: true
+                    )
+
+                    documentTypeRow(
+                        title: "Акт выполненных работ",
+                        subtitle: "Будет отдельный короткий сценарий",
+                        icon: "checklist.checked",
+                        isSelected: false,
+                        isEnabled: false
+                    )
+
+                    documentTypeRow(
+                        title: "Счет-фактура",
+                        subtitle: "Будет отдельный сценарий с налоговыми полями",
+                        icon: "building.columns.fill",
+                        isSelected: false,
+                        isEnabled: false
+                    )
+                }
+            }
+
+            if viewModel.recentInvoiceTemplates.isEmpty == false {
+                templatesSection
             }
         }
     }
 
-    var emptyItemsPlaceholder: some View {
-        Text("Добавьте товары, услуги или работы, которые попадут в документ.")
-            .font(AppFont.Text.caption)
-            .foregroundStyle(AppColor.Text.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(AppSpacing.md)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(.white.opacity(0.38))
+    var templatesSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("Создать на основе прошлого")
+                .font(AppFont.Text.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, AppSpacing.md)
+
+            MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(viewModel.recentInvoiceTemplates.prefix(3)) { document in
+                        Button {
+                            viewModel.useTemplate(document)
+                        } label: {
+                            HStack(spacing: AppSpacing.md) {
+                                Image(systemName: "doc.on.doc.fill")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundStyle(AppColor.Brand.primary)
+                                    .frame(width: 38, height: 38)
+                                    .background(AppColor.Brand.primary.opacity(0.12), in: Circle())
+
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("Счет №\(document.number)")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(AppColor.Text.primary)
+
+                                    Text(document.buyer.displayName.isEmpty ? "Покупатель не указан" : document.buyer.displayName)
+                                        .font(AppFont.Text.caption)
+                                        .foregroundStyle(AppColor.Text.secondary)
+                                }
+
+                                Spacer()
+
+                                Text(CurrencyFormatter.amountText(document.totals.total, currencyCode: document.currencyCode))
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(AppColor.Text.primary)
+                            }
+                            .padding(AppSpacing.md)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
+        }
     }
 
-    var addItemButton: some View {
-        Button {
-            viewModel.addItem()
+    func documentTypeRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        isSelected: Bool,
+        isEnabled: Bool
+    ) -> some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(isEnabled ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .frame(width: 42, height: 42)
+                .background((isEnabled ? AppColor.Brand.primary : Color.gray).opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(isEnabled ? AppColor.Text.primary : AppColor.Text.secondary)
+
+                Text(subtitle)
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "lock.fill")
+                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+        }
+        .opacity(isEnabled ? 1 : 0.58)
+    }
+
+    func partyStep(
+        title: String,
+        subtitle: String,
+        party: DocumentParty,
+        onSelect: @escaping (DocumentParty) -> Void,
+        onUpdate: @escaping (DocumentParty) -> Void
+    ) -> some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(title: title, subtitle: subtitle)
+
+            organizationMenu(onSelect: onSelect)
+
+            MaterialCard {
+                VStack(spacing: AppSpacing.md) {
+                    partyTextField("Название", value: party.displayName) { value in
+                        var next = party
+                        next.displayName = value
+                        onUpdate(next)
+                    }
+                    partyTextField("ИНН", value: party.taxID) { value in
+                        var next = party
+                        next.taxID = value
+                        onUpdate(next)
+                    }
+                    partyTextField("КПП / ОГРН", value: party.registrationNumber) { value in
+                        var next = party
+                        next.registrationNumber = value
+                        onUpdate(next)
+                    }
+                    partyTextField("Адрес", value: party.address) { value in
+                        var next = party
+                        next.address = value
+                        onUpdate(next)
+                    }
+                    partyTextField("Банк", value: party.bankName) { value in
+                        var next = party
+                        next.bankName = value
+                        onUpdate(next)
+                    }
+                    partyTextField("Расчетный счет", value: party.bankAccount) { value in
+                        var next = party
+                        next.bankAccount = value
+                        onUpdate(next)
+                    }
+                    partyTextField("БИК", value: party.bankCode) { value in
+                        var next = party
+                        next.bankCode = value
+                        onUpdate(next)
+                    }
+                }
+            }
+        }
+    }
+
+    func organizationMenu(onSelect: @escaping (DocumentParty) -> Void) -> some View {
+        Menu {
+            ForEach(viewModel.organizationOptions) { option in
+                Button {
+                    onSelect(option.party)
+                } label: {
+                    Text(option.party.displayName)
+                }
+            }
         } label: {
-            Label("Добавить позицию", systemImage: "plus.circle.fill")
-                .font(AppFont.Control.button)
-                .foregroundStyle(AppColor.Brand.primary)
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: "building.2.fill")
+                Text(viewModel.organizationOptions.isEmpty ? "Организаций пока нет" : "Выбрать из организаций")
+                Spacer()
+                Image(systemName: "chevron.down")
+            }
+            .font(AppFont.Control.button)
+            .foregroundStyle(.white)
+            .padding(.horizontal, AppSpacing.md)
+            .frame(height: 48)
+            .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.organizationOptions.isEmpty)
+    }
+
+    func partyTextField(
+        _ title: String,
+        value: String,
+        onChange: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+
+            TextField(title, text: Binding(
+                get: { value },
+                set: onChange
+            ))
+            .font(.system(size: 16, weight: .medium))
+            .foregroundStyle(AppColor.Text.primary)
+            .textInputAutocapitalization(.never)
+            .padding(.horizontal, AppSpacing.md)
+            .frame(height: 46)
+            .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+        }
+    }
+
+    var detailsStep: some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Реквизиты счета",
+                subtitle: "Номер можно поправить вручную, дату и НДС применим ко всем позициям."
+            )
+
+            MaterialCard {
+                VStack(spacing: AppSpacing.md) {
+                    partyTextField("Номер счета", value: viewModel.draft.number) {
+                        viewModel.updateNumber($0)
+                    }
+
+                    DatePicker(
+                        "Дата счета",
+                        selection: Binding(
+                            get: { viewModel.draft.date },
+                            set: viewModel.updateDate
+                        ),
+                        displayedComponents: .date
+                    )
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(AppColor.Text.primary)
+
+                    partyTextField("Валюта", value: viewModel.draft.currencyCode) {
+                        viewModel.updateCurrencyCode($0)
+                    }
+
+                    vatSelector
+                }
+            }
+        }
+    }
+
+    var vatSelector: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("НДС")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+
+            HStack(spacing: AppSpacing.xs) {
+                vatButton(title: "Без НДС", rate: nil)
+                vatButton(title: "10%", rate: 10)
+                vatButton(title: "20%", rate: 20)
+            }
+        }
+    }
+
+    func vatButton(title: String, rate: Decimal?) -> some View {
+        let isSelected = viewModel.selectedVATRate == rate
+
+        return Button {
+            viewModel.updateVATRate(rate)
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : AppColor.Text.primary)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 38)
                 .background {
-                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                        .fill(AppColor.Brand.primary.opacity(0.10))
+                    RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                        .fill(isSelected ? AppColor.Brand.primary : Color.black.opacity(0.05))
                 }
         }
         .buttonStyle(.plain)
     }
 
-    func itemEditorCard(_ item: DocumentItem, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack(alignment: .center, spacing: AppSpacing.md) {
-                Text("Позиция \(index + 1)")
-                    .font(AppFont.Text.headline)
-                    .foregroundStyle(AppColor.Text.primary)
-
-                Spacer()
-
-                Button(role: .destructive) {
-                    viewModel.removeItem(id: item.id)
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppColor.Status.danger)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            Circle()
-                                .fill(AppColor.Status.dangerBackground.opacity(0.38))
-                        }
-                }
-                .buttonStyle(.plain)
-            }
-
-            editorTextField(
-                title: "Название",
-                placeholder: "Наименование позиции",
-                text: Binding(
-                    get: { item.title },
-                    set: { viewModel.updateItemTitle(id: item.id, title: $0) }
-                )
+    var itemsStep: some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Позиции счета",
+                subtitle: "Строки выглядят как в счете: услуга, количество, цена и сумма."
             )
 
-            HStack(alignment: .top, spacing: AppSpacing.sm) {
-                decimalTextField(
-                    title: "Кол-во",
-                    value: Binding(
-                        get: { item.quantity },
-                        set: { viewModel.updateItemQuantity(id: item.id, quantity: $0) }
-                    )
-                )
-
-                editorTextField(
-                    title: "Ед.",
-                    placeholder: "шт",
-                    text: Binding(
-                        get: { item.unit },
-                        set: { viewModel.updateItemUnit(id: item.id, unit: $0) }
-                    )
-                )
-                .frame(width: 82)
-
-                decimalTextField(
-                    title: "Цена",
-                    value: Binding(
-                        get: { item.price },
-                        set: { viewModel.updateItemPrice(id: item.id, price: $0) }
-                    )
-                )
-            }
-
-            HStack {
-                Text("Сумма")
-                    .font(AppFont.Text.caption)
-                    .foregroundStyle(AppColor.Text.secondary)
-
-                Spacer()
-
-                Text(itemAmountText(item))
-                    .font(AppFont.Text.headline)
-                    .foregroundStyle(AppColor.Text.primary)
-            }
-        }
-        .padding(AppSpacing.md)
-        .background {
-            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .fill(.white.opacity(0.42))
-        }
-    }
-}
-
-// MARK: - Totals & Notes
-
-private extension DocumentEditorScreen {
-
-    var totalsSection: some View {
-        editorSection(title: "Итоги", iconName: "sum") {
             VStack(spacing: AppSpacing.sm) {
-                infoRow("Позиций", "\(viewModel.totals.itemCount)")
-                infoRow("Сумма", totalAmountText, valueWeight: .bold)
-            }
-        }
-    }
-
-    var notesSection: some View {
-        editorSection(title: "Комментарий", iconName: "text.alignleft") {
-            editorTextField(
-                title: "Заметки",
-                placeholder: "Комментарий к документу",
-                text: notesBinding,
-                axis: .vertical
-            )
-            .lineLimit(4, reservesSpace: true)
-        }
-    }
-}
-
-// MARK: - Save Actions
-
-private extension DocumentEditorScreen {
-
-    var saveActionSection: some View {
-        VStack(spacing: AppSpacing.sm) {
-            if let errorMessage = viewModel.errorMessage, errorMessage.isEmpty == false {
-                errorBanner(errorMessage)
-            }
-
-            HStack(spacing: AppSpacing.sm) {
-                Button {
-                    viewModel.didTapPreview()
-                } label: {
-                    Label("Предпросмотр", systemImage: "doc.richtext")
-                        .font(AppFont.Control.button)
-                        .foregroundStyle(AppColor.Text.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background {
-                            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                                .fill(.white.opacity(0.72))
-                        }
+                ForEach(viewModel.draft.items) { item in
+                    itemRow(item)
                 }
-                .buttonStyle(.plain)
-                .disabled(viewModel.canSave == false || viewModel.isSaving)
+            }
 
-                Button {
-                    Task {
-                        await viewModel.didTapSave()
-                    }
-                } label: {
-                    HStack(spacing: AppSpacing.sm) {
-                        if viewModel.isSaving {
-                            ProgressView()
-                                .controlSize(.small)
-                                .tint(.white)
-                        }
-
-                        Text(viewModel.isSaving ? "Сохраняем" : "Сохранить")
-                    }
+            Button {
+                viewModel.addItem()
+            } label: {
+                Label("Добавить позицию", systemImage: "plus.circle.fill")
                     .font(AppFont.Control.button)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background {
-                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                            .fill(viewModel.canSave ? AppColor.Brand.primary : .gray.opacity(0.45))
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(viewModel.canSave == false || viewModel.isSaving)
+                    .frame(height: 48)
+                    .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
             }
+            .buttonStyle(.plain)
+
+            totalCard
         }
     }
 
-    func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: AppSpacing.sm) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(AppColor.Status.danger)
+    func itemRow(_ item: DocumentItem) -> some View {
+        let displayedItem = currentItem(for: item)
 
-            Text(message)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Status.danger)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(AppSpacing.md)
-        .background {
-            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .fill(AppColor.Status.dangerBackground.opacity(0.46))
-        }
-    }
-}
-
-// MARK: - Display Formatting
-
-private extension DocumentEditorScreen {
-
-    var totalAmountText: String {
-        CurrencyFormatter.amountText(
-            viewModel.totals.total,
-            currencyCode: viewModel.draft.currencyCode
-        )
-    }
-
-    func itemAmountText(_ item: DocumentItem) -> String {
-        CurrencyFormatter.amountText(
-            item.amount,
-            currencyCode: viewModel.draft.currencyCode
-        )
-    }
-
-    func iconName(for type: DocumentType) -> String {
-        switch type {
-        case .invoice:
-            return "doc.text.fill"
-
-        case .act:
-            return "checkmark.seal.fill"
-
-        case .deliveryNote:
-            return "doc.text.magnifyingglass"
-        }
-    }
-}
-
-// MARK: - Bindings
-
-private extension DocumentEditorScreen {
-
-    var documentNumberBinding: Binding<String> {
-        Binding(
-            get: { viewModel.draft.number },
-            set: { viewModel.updateNumber($0) }
-        )
-    }
-
-    var documentDateBinding: Binding<Date> {
-        Binding(
-            get: { viewModel.draft.date },
-            set: { viewModel.updateDate($0) }
-        )
-    }
-
-    var currencyCodeBinding: Binding<String> {
-        Binding(
-            get: { viewModel.draft.currencyCode },
-            set: { viewModel.updateCurrencyCode($0) }
-        )
-    }
-
-    var notesBinding: Binding<String> {
-        Binding(
-            get: { viewModel.draft.notes },
-            set: { viewModel.updateNotes($0) }
-        )
-    }
-
-    func partyBinding(
-        _ party: DocumentParty,
-        update: @escaping (DocumentParty) -> Void,
-        keyPath: WritableKeyPath<DocumentParty, String>
-    ) -> Binding<String> {
-        Binding(
-            get: {
-                party[keyPath: keyPath]
-            },
-            set: { newValue in
-                var updatedParty = party
-                updatedParty[keyPath: keyPath] = newValue
-                update(updatedParty)
-            }
-        )
-    }
-}
-
-// MARK: - Components
-
-private extension DocumentEditorScreen {
-
-    func editorSection<Content: View>(
-        title: String,
-        iconName: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        MaterialCard(cornerRadius: AppRadius.lg) {
+        return MaterialCard {
             VStack(alignment: .leading, spacing: AppSpacing.md) {
-                HStack(spacing: AppSpacing.sm) {
-                    Image(systemName: iconName)
-                        .font(.system(size: 16, weight: .semibold))
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Позиция")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(AppColor.Text.primary)
+
+                        Text(displayedItem.title.isEmpty ? "Услуга или товар" : displayedItem.title)
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Text(CurrencyFormatter.amountText(displayedItem.amount, currencyCode: viewModel.draft.currencyCode))
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppColor.Text.primary)
+
+                    Button {
+                        viewModel.removeItem(id: item.id)
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.red.opacity(0.82))
+                            .frame(width: 34, height: 34)
+                            .background(Color.red.opacity(0.08), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Название услуги или товара")
+                        .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
 
-                    Text(title)
-                        .font(AppFont.Text.headline)
-                        .foregroundStyle(AppColor.Text.primary)
+                    TextField("Наименование", text: Binding(
+                        get: { currentItem(for: item).title },
+                        set: { viewModel.updateItemTitle(id: item.id, title: $0) }
+                    ))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .padding(.horizontal, AppSpacing.md)
+                    .frame(height: 48)
+                    .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
                 }
 
-                content()
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Расчет")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+
+                    HStack(spacing: AppSpacing.sm) {
+                        calculationField(title: "Кол-во") {
+                            decimalField("", value: currentItem(for: item).quantity) {
+                                viewModel.updateItemQuantity(id: item.id, quantity: $0)
+                            }
+                        }
+
+                        calculationField(title: "Ед.") {
+                            textField("", value: currentItem(for: item).unit) {
+                                viewModel.updateItemUnit(id: item.id, unit: $0)
+                            }
+                        }
+
+                        calculationField(title: "Цена") {
+                            decimalField("", value: currentItem(for: item).price) {
+                                viewModel.updateItemPrice(id: item.id, price: $0)
+                            }
+                        }
+                    }
+                }
+
+                HStack {
+                    Text(displayedItem.vatRate.map { "НДС \(decimalText($0))%" } ?? "Без НДС")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
             }
         }
     }
 
-    func editorTextField(
+    func calculationField<Content: View>(
         title: String,
-        placeholder: String,
-        text: Binding<String>,
-        axis: Axis = .horizontal
+        @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(AppFont.Text.caption)
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(AppColor.Text.secondary)
 
-            TextField(placeholder, text: text, axis: axis)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppColor.Text.primary)
-                .lineLimit(axis == .vertical ? 3 : 1, reservesSpace: axis == .vertical)
-                .padding(.horizontal, AppSpacing.md)
-                .frame(minHeight: 46)
-                .background {
-                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                        .fill(.white.opacity(0.58))
-                }
+            content()
         }
     }
 
-    func decimalTextField(
-        title: String,
-        value: Binding<Decimal>
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.secondary)
-
-            TextField(
-                "0",
-                value: value,
-                formatter: Self.numberFormatter
-            )
-            .keyboardType(.decimalPad)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(AppColor.Text.primary)
-            .padding(.horizontal, AppSpacing.md)
-            .frame(height: 46)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(.white.opacity(0.58))
-            }
-        }
-    }
-
-    func infoRow(
+    func textField(
         _ title: String,
-        _ value: String,
-        valueWeight: Font.Weight = .semibold
+        value: String,
+        onChange: @escaping (String) -> Void
     ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.md) {
+        TextField(title, text: Binding(get: { value }, set: onChange))
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(AppColor.Text.primary)
+            .padding(.horizontal, AppSpacing.sm)
+            .frame(height: 42)
+            .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+    }
+
+    func decimalField(
+        _ title: String,
+        value: Decimal,
+        onChange: @escaping (Decimal) -> Void
+    ) -> some View {
+        InvoiceDecimalField(
+            title: title,
+            value: value,
+            onChange: onChange
+        )
+    }
+
+    var totalCard: some View {
+        MaterialCard {
+            VStack(spacing: AppSpacing.sm) {
+                amountLine(title: "Подытог", amount: viewModel.totals.subtotal)
+                amountLine(title: "НДС", amount: viewModel.totals.vatAmount)
+                Divider()
+                amountLine(title: "Итого", amount: viewModel.totals.total, isTotal: true)
+            }
+        }
+    }
+
+    func amountLine(title: String, amount: Decimal, isTotal: Bool = false) -> some View {
+        HStack {
             Text(title)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.secondary)
+                .font(isTotal ? AppFont.Text.headline : AppFont.Text.caption)
+                .foregroundStyle(isTotal ? AppColor.Text.primary : AppColor.Text.secondary)
 
             Spacer()
 
-            Text(value)
-                .font(.system(size: 16, weight: valueWeight))
+            Text(CurrencyFormatter.amountText(amount, currencyCode: viewModel.draft.currencyCode))
+                .font(isTotal ? .system(size: 20, weight: .bold) : .system(size: 14, weight: .semibold))
                 .foregroundStyle(AppColor.Text.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
         }
     }
 
-    // MARK: - Formatters
-
-    static let numberFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.generatesDecimalNumbers = true
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 0
-        return formatter
-    }()
-}
-
-// MARK: - Preview
-
-#Preview("New Invoice") {
-    NavigationStack {
-        DocumentEditorScreen(
-            viewModel: DocumentEditorViewModel(
-                mode: .create(.invoice),
-                router: PreviewDocumentsRouter(),
-                documentsRepository: InMemoryDocumentsRepository(documents: []),
-                documentFactory: DocumentFactory(),
-                documentValidator: DocumentValidator()
+    var notesStep: some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Комментарий",
+                subtitle: "Добавьте назначение платежа, срок оплаты или внутреннюю заметку."
             )
-        )
+
+            MaterialCard {
+                TextEditor(text: Binding(
+                    get: { viewModel.draft.notes },
+                    set: viewModel.updateNotes
+                ))
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppColor.Text.primary)
+                .frame(minHeight: 180)
+                .scrollContentBackground(.hidden)
+            }
+        }
+    }
+
+    var reviewStep: some View {
+        VStack(spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Проверьте счет",
+                subtitle: "Все ключевые параметры собраны в короткий экран перед сохранением."
+            )
+
+            MaterialCard {
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    amountLine(title: "Итого", amount: viewModel.totals.total, isTotal: true)
+                    reviewLine("Номер", viewModel.draft.number)
+                    reviewLine("Продавец", viewModel.draft.seller.displayName)
+                    reviewLine("Покупатель", viewModel.draft.buyer.displayName)
+                    reviewLine("Позиций", "\(viewModel.draft.items.count)")
+                }
+            }
+
+            MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(viewModel.draft.items) { item in
+                        HStack(spacing: AppSpacing.sm) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.title.isEmpty ? "Без названия" : item.title)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppColor.Text.primary)
+
+                                Text("\(decimalText(item.quantity)) \(item.unit) × \(CurrencyFormatter.amountText(item.price, currencyCode: viewModel.draft.currencyCode))")
+                                    .font(AppFont.Text.caption)
+                                    .foregroundStyle(AppColor.Text.secondary)
+                            }
+
+                            Spacer()
+
+                            Text(CurrencyFormatter.amountText(item.amount, currencyCode: viewModel.draft.currencyCode))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(AppColor.Text.primary)
+                        }
+                        .padding(AppSpacing.md)
+                    }
+                }
+            }
+        }
+    }
+
+    func reviewLine(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(title)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+                .frame(width: 86, alignment: .leading)
+
+            Text(value.isEmpty ? "Не указано" : value)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppColor.Text.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
-#Preview("New Act") {
-    NavigationStack {
-        DocumentEditorScreen(
-            viewModel: DocumentEditorViewModel(
-                mode: .create(.act),
-                router: PreviewDocumentsRouter(),
-                documentsRepository: InMemoryDocumentsRepository(documents: []),
-                documentFactory: DocumentFactory(),
-                documentValidator: DocumentValidator()
-            )
-        )
+// MARK: - Footer
+
+private extension DocumentEditorScreen {
+    var footer: some View {
+        VStack {
+            Spacer()
+
+            HStack(spacing: AppSpacing.sm) {
+                if viewModel.currentStep != .type {
+                    Button {
+                        viewModel.goBack()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(AppColor.Text.primary)
+                            .frame(width: 48, height: 48)
+                            .background(Color.white, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if viewModel.currentStep == .review {
+                    Button {
+                        viewModel.didTapPreview()
+                    } label: {
+                        Label("Дальше", systemImage: "arrow.right.circle.fill")
+                            .font(AppFont.Control.button)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.canSave == false)
+                    .opacity(viewModel.canSave ? 1 : 0.45)
+                } else {
+                    Button {
+                        viewModel.goForward()
+                    } label: {
+                        Label("Дальше", systemImage: "arrow.right.circle.fill")
+                            .font(AppFont.Control.button)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.canMoveForward == false)
+                    .opacity(viewModel.canMoveForward ? 1 : 0.45)
+                }
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.sm)
+            .padding(.bottom, AppSpacing.md)
+            .background(.ultraThinMaterial)
+        }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 
-#Preview("Edit Invoice") {
-    NavigationStack {
-        DocumentEditorScreen(
-            viewModel: DocumentEditorViewModel(
-                mode: .edit(PreviewDocumentFixtures.invoice),
-                router: PreviewDocumentsRouter(),
-                documentsRepository: InMemoryDocumentsRepository(documents: [PreviewDocumentFixtures.invoice]),
-                documentFactory: DocumentFactory(),
-                documentValidator: DocumentValidator()
-            )
-        )
+// MARK: - Common Views
+
+private extension DocumentEditorScreen {
+    func currentItem(for item: DocumentItem) -> DocumentItem {
+        viewModel.draft.items.first(where: { $0.id == item.id }) ?? item
+    }
+
+    func sectionHeader(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text(subtitle)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(.white.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    var errorView: some View {
+        if let errorMessage = viewModel.errorMessage {
+            Text(errorMessage)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, AppSpacing.md)
+        }
+    }
+
+    func decimalText(_ value: Decimal) -> String {
+        let number = NSDecimalNumber(decimal: value)
+        return DocumentHTMLRenderer.amountFormatter.string(from: number) ?? number.stringValue
+    }
+
+}
+
+private struct InvoiceDecimalField: View {
+    let title: String
+    let value: Decimal
+    let onChange: (Decimal) -> Void
+
+    @State private var text: String
+    @FocusState private var isFocused: Bool
+
+    init(
+        title: String,
+        value: Decimal,
+        onChange: @escaping (Decimal) -> Void
+    ) {
+        self.title = title
+        self.value = value
+        self.onChange = onChange
+        _text = State(initialValue: Self.displayText(for: value))
+    }
+
+    var body: some View {
+        TextField(title, text: $text)
+            .keyboardType(.decimalPad)
+            .focused($isFocused)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(AppColor.Text.primary)
+            .padding(.horizontal, AppSpacing.sm)
+            .frame(height: 42)
+            .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            .onChange(of: text) { newValue in
+                onChange(Self.decimalValue(from: newValue))
+            }
+            .onChange(of: value) { newValue in
+                guard isFocused == false else { return }
+                text = Self.displayText(for: newValue)
+            }
+            .onChange(of: isFocused) { newValue in
+                if newValue == false {
+                    text = Self.displayText(for: value)
+                }
+            }
     }
 }
 
-#Preview("Edit Delivery Note") {
-    NavigationStack {
-        DocumentEditorScreen(
-            viewModel: DocumentEditorViewModel(
-                mode: .edit(PreviewDocumentFixtures.deliveryNote),
-                router: PreviewDocumentsRouter(),
-                documentsRepository: InMemoryDocumentsRepository(documents: [PreviewDocumentFixtures.deliveryNote]),
-                documentFactory: DocumentFactory(),
-                documentValidator: DocumentValidator()
-            )
-        )
+private extension InvoiceDecimalField {
+    static func displayText(for value: Decimal) -> String {
+        let number = NSDecimalNumber(decimal: value)
+        return DocumentHTMLRenderer.amountFormatter.string(from: number) ?? number.stringValue
     }
-}
 
-// MARK: - Preview Router
+    static func decimalValue(from text: String) -> Decimal {
+        let normalized = text
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
 
-private final class PreviewDocumentsRouter: DocumentsCoordinatorProtocol {
-    func start() { }
-    func showDetail(document: BusinessDocument) { }
-    func showCreateDocument(type: DocumentType) { }
-    func showDuplicateDocument(document: BusinessDocument) { }
-    func showEditDocument(document: BusinessDocument) { }
-    func showPreview(document: BusinessDocument) { }
-    func finishDocumentFlowAfterShare() { }
-    func dismiss() { }
-    func pop() { }
-}
-
-// MARK: - Preview Fixtures
-
-private enum PreviewDocumentFixtures {
-
-    static let invoice = BusinessDocument(
-        type: .invoice,
-        number: "INV-2026-001",
-        date: Date(),
-        seller: seller,
-        buyer: alfaBuyer,
-        items: [
-            DocumentItem(
-                title: "Разработка интерфейса",
-                quantity: 1,
-                unit: "услуга",
-                price: 45_000
-            ),
-            DocumentItem(
-                title: "Подготовка PDF-документа",
-                quantity: 2,
-                unit: "час",
-                price: 3_500
-            )
-        ],
-        notes: "Оплата в течение 5 рабочих дней.",
-        currencyCode: "RUB",
-        status: .ready
-    )
-
-    static let deliveryNote = BusinessDocument(
-        type: .deliveryNote,
-        number: "DN-2026-008",
-        date: Date(),
-        seller: seller,
-        buyer: retailBuyer,
-        items: [
-            DocumentItem(
-                title: "Термопринтер",
-                quantity: 2,
-                unit: "шт",
-                price: 12_000
-            ),
-            DocumentItem(
-                title: "Рулоны чековой ленты",
-                quantity: 10,
-                unit: "шт",
-                price: 180
-            )
-        ],
-        notes: "Передача товара по адресу склада покупателя.",
-        currencyCode: "RUB",
-        status: .draft
-    )
-
-    static let seller = DocumentParty(
-        displayName: "ООО BillingFlow Studio",
-        taxID: "6678123456",
-        registrationNumber: "667801001",
-        address: "г. Москва, ул. Горького, 12",
-        bankName: "АО Т-Банк",
-        bankAccount: "40702810900000000001",
-        bankCode: "044525974",
-        contactName: "Иван Иванов",
-        phone: "+7 912 000-00-00",
-        email: "finance@billingflow.app"
-    )
-
-    static let alfaBuyer = DocumentParty(
-        displayName: "ООО Альфа",
-        taxID: "7701234567",
-        registrationNumber: "",
-        address: "г. Москва, ул. Тверская, 8",
-        bankName: "",
-        bankAccount: "",
-        bankCode: "",
-        contactName: "",
-        phone: "+7 999 123-45-67",
-        email: "pay@alfa.ru"
-    )
-
-    static let retailBuyer = DocumentParty(
-        displayName: "ООО Ритейл Плюс",
-        taxID: "5904123456",
-        registrationNumber: "",
-        address: "г. Челябинск, пр. Победы, 21",
-        bankName: "",
-        bankAccount: "",
-        bankCode: "",
-        contactName: "",
-        phone: "+7 951 300-40-50",
-        email: "office@retailplus.ru"
-    )
+        return Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")) ?? 0
+    }
 }

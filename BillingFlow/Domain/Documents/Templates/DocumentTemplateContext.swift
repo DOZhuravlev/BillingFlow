@@ -58,11 +58,14 @@ struct DocumentTemplateContext {
 
     init(document: BusinessDocument) {
         let totals = document.totals
+        let hasVAT = totals.vatAmount > 0
         let numberFormatter = DocumentHTMLRenderer.amountFormatter
         let totalNumber = NSDecimalNumber(decimal: totals.total)
         let subtotalNumber = NSDecimalNumber(decimal: totals.subtotal)
+        let vatNumber = NSDecimalNumber(decimal: totals.vatAmount)
         let formattedTotal = numberFormatter.string(from: totalNumber) ?? totalNumber.stringValue
         let formattedSubtotal = numberFormatter.string(from: subtotalNumber) ?? subtotalNumber.stringValue
+        let formattedVAT = numberFormatter.string(from: vatNumber) ?? vatNumber.stringValue
 
         self.documentTitle = Self.title(for: document.type)
         self.companyName = Self.raw(document.seller.displayName, fallback: "Компания не указана")
@@ -107,17 +110,17 @@ struct DocumentTemplateContext {
         self.priceLabel = "Цена"
         self.vatColumnLabel = "НДС"
         self.sumLabel = "Сумма"
-        self.itemsVATColumnHiddenClass = "items-vat-column--hidden"
-        self.itemsVATCellHiddenClass = "items-vat-cell--hidden"
+        self.itemsVATColumnHiddenClass = hasVAT ? "" : "items-vat-column--hidden"
+        self.itemsVATCellHiddenClass = hasVAT ? "" : "items-vat-cell--hidden"
         self.currencyRowHiddenClass = document.currencyCode.isEmpty ? "currency-row--hidden" : ""
         self.currencyLabel = "Валюта"
         self.currencyCode = Self.raw(document.currencyCode, fallback: "RUB")
         self.currencySummaryText = document.currencyCode.isEmpty ? "" : "Все суммы указаны в \(document.currencyCode)"
         self.subtotalLabel = "Подытог"
         self.subtotalText = "\(formattedSubtotal) \(document.currencyCode)"
-        self.vatRowHiddenClass = "vat-row--hidden"
+        self.vatRowHiddenClass = hasVAT ? "" : "vat-row--hidden"
         self.vatText = "НДС"
-        self.vatAmountText = ""
+        self.vatAmountText = "\(formattedVAT) \(document.currencyCode)"
         self.totalLabel = "Итого"
         self.totalText = "\(formattedTotal) \(document.currencyCode)"
         self.summaryText = "Всего наименований \(totals.itemCount), на сумму \(formattedTotal) \(document.currencyCode)"

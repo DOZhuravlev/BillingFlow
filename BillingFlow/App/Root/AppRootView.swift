@@ -5,6 +5,7 @@ struct AppRootView: View {
     // MARK: - State
 
     @StateObject private var appCoordinator: AppCoordinator
+    @ObservedObject private var tabBarVisibilityStore: TabBarVisibilityStore
 
     // MARK: - Dependencies
 
@@ -14,6 +15,7 @@ struct AppRootView: View {
 
     init(dependencies: AppDependencies) {
           self.dependencies = dependencies
+          self.tabBarVisibilityStore = dependencies.tabBarVisibilityStore
           _appCoordinator = StateObject(
               wrappedValue: AppCoordinator(dependencies: dependencies)
           )
@@ -25,14 +27,18 @@ struct AppRootView: View {
             tabContent
         }
         .overlay(alignment: .bottom) {
-            CustomTabView(
-                selection: $appCoordinator.selectedTab,
-                onCreateTap: {
-                    appCoordinator.handleCreateDocumentTap()
-                }
-            )
-            .offset(y: 20)
+            if tabBarVisibilityStore.isHidden == false {
+                CustomTabView(
+                    selection: $appCoordinator.selectedTab,
+                    onCreateTap: {
+                        appCoordinator.handleCreateDocumentTap()
+                    }
+                )
+                .offset(y: 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: tabBarVisibilityStore.isHidden)
         .sheet(item: $appCoordinator.activeSheet) { sheet in
             //sheetView(sheet)
         }

@@ -2,28 +2,15 @@ import SwiftUI
 
 struct OrganizationsScreen: View {
 
-    // MARK: - Data
+    // MARK: - State
 
-    private let organizations: [OrganizationItem] = [
-        OrganizationItem(
-            name: "ООО Автозаказ",
-            subtitle: "Основная организация",
-            taxID: "ИНН 6678123456",
-            documentsCount: "24 документа"
-        ),
-        OrganizationItem(
-            name: "ООО Альфа",
-            subtitle: "Покупатель",
-            taxID: "ИНН 7701234567",
-            documentsCount: "8 документов"
-        ),
-        OrganizationItem(
-            name: "ИП Петров П.П.",
-            subtitle: "Исполнитель",
-            taxID: "ИНН 665500123456",
-            documentsCount: "3 документа"
-        )
-    ]
+    @StateObject private var viewModel: OrganizationsViewModel
+
+    // MARK: - Initialization
+
+    init(viewModel: OrganizationsViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     // MARK: - Body
 
@@ -42,6 +29,9 @@ struct OrganizationsScreen: View {
                 .padding(.bottom, AppLayout.floatingTabBarBottomInset)
             }
             .scrollIndicators(.hidden)
+        }
+        .task {
+            await viewModel.load()
         }
     }
 }
@@ -102,13 +92,17 @@ private extension OrganizationsScreen {
                 .foregroundStyle(.white)
                 .padding(.horizontal, AppSpacing.md)
 
-            MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
-                VStack(spacing: 0) {
-                    ForEach(organizations) { organization in
-                        organizationRow(organization)
+            if viewModel.items.isEmpty {
+                emptyState
+            } else {
+                MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.items) { organization in
+                            organizationRow(organization)
 
-                        if organization.id != organizations.last?.id {
-                            divider
+                            if organization.id != viewModel.items.last?.id {
+                                divider
+                            }
                         }
                     }
                 }
@@ -116,7 +110,7 @@ private extension OrganizationsScreen {
         }
     }
 
-    func organizationRow(_ organization: OrganizationItem) -> some View {
+    func organizationRow(_ organization: OrganizationsViewModel.Item) -> some View {
         Button {
 
         } label: {
@@ -136,7 +130,7 @@ private extension OrganizationsScreen {
                         .foregroundStyle(AppColor.Text.primary)
                         .lineLimit(1)
 
-                    Text("\(organization.subtitle) · \(organization.taxID)")
+                    Text("\(organization.roleTitle) · \(organization.taxIDText)")
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
                         .lineLimit(1)
@@ -145,7 +139,7 @@ private extension OrganizationsScreen {
                 Spacer(minLength: AppSpacing.sm)
 
                 VStack(alignment: .trailing, spacing: 5) {
-                    Text(organization.documentsCount)
+                    Text(organization.documentsCountText)
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
                         .lineLimit(1)
@@ -167,26 +161,20 @@ private extension OrganizationsScreen {
             .frame(height: 1)
             .padding(.leading, 74)
     }
-}
 
-private struct OrganizationItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let subtitle: String
-    let taxID: String
-    let documentsCount: String
+    var emptyState: some View {
+        MaterialCard {
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                Text("Организаций пока нет")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
 
-    var initials: String {
-        name
-            .split(separator: " ")
-            .prefix(2)
-            .compactMap(\.first)
-            .map(String.init)
-            .joined()
-            .uppercased()
+                Text("После создания счета продавец и покупатель появятся здесь автоматически.")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
-}
-
-#Preview {
-    OrganizationsScreen()
 }

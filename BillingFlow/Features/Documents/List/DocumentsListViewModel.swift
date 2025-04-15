@@ -23,12 +23,14 @@ final class DocumentsListViewModel: ObservableObject {
     private let documentsRepository: DocumentsRepositoryProtocol
     private let listGrouper: DocumentsListGrouper
     private let documentItemMapper: DocumentsListItemMapper
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         coordinator: DocumentsCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
+        documentEventsStore: DocumentEventsStore? = nil,
         listGrouper: DocumentsListGrouper = DocumentsListGrouper(),
         documentItemMapper: DocumentsListItemMapper = DocumentsListItemMapper()
     ) {
@@ -36,6 +38,20 @@ final class DocumentsListViewModel: ObservableObject {
         self.documentsRepository = documentsRepository
         self.listGrouper = listGrouper
         self.documentItemMapper = documentItemMapper
+        bindDocumentEvents(documentEventsStore)
+    }
+}
+
+// MARK: - Events
+
+private extension DocumentsListViewModel {
+    func bindDocumentEvents(_ documentEventsStore: DocumentEventsStore?) {
+        documentEventsStore?
+            .documentsDidChangePublisher
+            .sink { [weak self] in
+                self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
     }
 }
 

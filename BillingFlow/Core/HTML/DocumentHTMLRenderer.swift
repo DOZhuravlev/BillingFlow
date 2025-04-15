@@ -119,6 +119,7 @@ struct DocumentHTMLRenderer {
             let unit = escape(item.unit.isEmpty ? "шт" : item.unit)
             let price = escape(formattedAmount(item.price, currencyCode: currencyCode))
             let amount = escape(formattedAmount(item.amount, currencyCode: currencyCode))
+            let vatText = item.vatRate.map { "\(formattedDecimal($0))%" } ?? "Без НДС"
 
             return """
             <tr>
@@ -127,7 +128,7 @@ struct DocumentHTMLRenderer {
               <td class="col-qty">\(quantity)</td>
               <td class="col-unit">\(unit)</td>
               <td class="col-price">\(price)</td>
-              <td class="col-vat \(itemsVATCellHiddenClass)"></td>
+              <td class="col-vat \(itemsVATCellHiddenClass)">\(vatText)</td>
               <td class="col-sum">\(amount)</td>
             </tr>
             """

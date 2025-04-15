@@ -20,6 +20,9 @@ struct DocumentsFlowRootView: UIViewControllerRepresentable {
         let coordinator = DocumentsCoordinator(
             navigationController: navigationController,
             documentsRepository: dependencies.documentsRepository,
+            organizationsRepository: dependencies.organizationsRepository,
+            tabBarVisibilityStore: dependencies.tabBarVisibilityStore,
+            documentEventsStore: dependencies.documentEventsStore,
             documentFactory: dependencies.documentFactory,
             documentValidator: dependencies.documentValidator,
             documentHTMLRenderer: dependencies.documentHTMLRenderer,

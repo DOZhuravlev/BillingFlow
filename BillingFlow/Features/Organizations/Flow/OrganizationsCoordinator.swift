@@ -21,7 +21,11 @@ final class OrganizationsCoordinator {
     // MARK: - Public API
 
     func start() {
-        let view = OrganizationsScreen()
+        let viewModel = OrganizationsViewModel(
+            organizationsRepository: dependencies.organizationsRepository,
+            documentsRepository: dependencies.documentsRepository
+        )
+        let view = OrganizationsScreen(viewModel: viewModel)
 
         let controller = HostingController(
             rootView: view,

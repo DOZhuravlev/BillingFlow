@@ -24,17 +24,33 @@ final class HomeViewModel: ObservableObject {
     private weak var coordinator: HomeCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
     private let documentCardItemMapper: DocumentCardItemMapper
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         coordinator: HomeCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
+        documentEventsStore: DocumentEventsStore? = nil,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
     ) {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
         self.documentCardItemMapper = documentCardItemMapper
+        bindDocumentEvents(documentEventsStore)
+    }
+}
+
+// MARK: - Events
+
+private extension HomeViewModel {
+    func bindDocumentEvents(_ documentEventsStore: DocumentEventsStore?) {
+        documentEventsStore?
+            .documentsDidChangePublisher
+            .sink { [weak self] in
+                self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
     }
 }
 

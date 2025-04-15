@@ -57,7 +57,8 @@ struct DocumentConverter {
                 title: item.title,
                 quantity: item.quantity,
                 unit: item.unit,
-                price: item.price
+                price: item.price,
+                vatRate: item.vatRate
             )
         }
     }

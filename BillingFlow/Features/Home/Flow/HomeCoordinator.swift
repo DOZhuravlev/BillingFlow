@@ -1,7 +1,7 @@
 import SwiftUI
 
 @MainActor
-final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtocol {
+final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordinatorProtocol {
 
     // MARK: - Navigation
 
@@ -19,11 +19,15 @@ final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtoc
     ) {
         self.navigationController = navigationController
         self.dependencies = dependencies
+        super.init()
     }
 
     func start() {
+        navigationController.delegate = self
+
         let viewModel = HomeViewModel(coordinator: self,
-                                      documentsRepository: dependencies.documentsRepository
+                                      documentsRepository: dependencies.documentsRepository,
+                                      documentEventsStore: dependencies.documentEventsStore
         )
 
         let view = HomeScreen(viewModel: viewModel)
@@ -72,6 +76,7 @@ final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtoc
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showDocumentPreview(_ document: BusinessDocument) {
@@ -87,11 +92,37 @@ final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtoc
     }
 
     func showPreview(document: BusinessDocument) {
+        showPreview(
+            document: document,
+            saveAction: nil,
+            signAndSendAction: nil
+        )
+    }
+
+    func showPreview(
+        document: BusinessDocument,
+        saveAction: @escaping () async -> Void,
+        signAndSendAction: @escaping () async -> Void
+    ) {
+        showPreview(
+            document: document,
+            saveAction: Optional(saveAction),
+            signAndSendAction: Optional(signAndSendAction)
+        )
+    }
+
+    private func showPreview(
+        document: BusinessDocument,
+        saveAction: (() async -> Void)?,
+        signAndSendAction: (() async -> Void)?
+    ) {
         let viewModel = DocumentPreviewViewModel(
             document: document,
             router: self,
             htmlRenderer: dependencies.documentHTMLRenderer,
-            pdfGenerator: dependencies.pdfGenerator
+            pdfGenerator: dependencies.pdfGenerator,
+            saveAction: saveAction,
+            signAndSendAction: signAndSendAction
         )
 
         let view = DocumentPreviewScreen(viewModel: viewModel)
@@ -102,6 +133,7 @@ final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtoc
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showAllDocuments() {
@@ -130,6 +162,32 @@ final class HomeCoordinator: HomeCoordinatorProtocol, DocumentsCoordinatorProtoc
 
     func finishDocumentFlowAfterShare() {
         navigationController.popToRootViewController(animated: true)
+        updateTabBarVisibility()
+    }
+
+    func finishDocumentFlowAfterSave() {
+        navigationController.popToRootViewController(animated: true)
+        updateTabBarVisibility()
+    }
+}
+
+// MARK: - UINavigationControllerDelegate
+
+extension HomeCoordinator: UINavigationControllerDelegate {
+    func navigationController(
+        _ navigationController: UINavigationController,
+        didShow viewController: UIViewController,
+        animated: Bool
+    ) {
+        updateTabBarVisibility()
+    }
+}
+
+// MARK: - Tab Bar Visibility
+
+private extension HomeCoordinator {
+    func updateTabBarVisibility() {
+        dependencies.tabBarVisibilityStore.setHidden(navigationController.viewControllers.count > 1)
     }
 }
 
@@ -139,6 +197,8 @@ private extension HomeCoordinator {
             mode: mode,
             router: self,
             documentsRepository: dependencies.documentsRepository,
+            organizationsRepository: dependencies.organizationsRepository,
+            documentEventsStore: dependencies.documentEventsStore,
             documentFactory: dependencies.documentFactory,
             documentValidator: dependencies.documentValidator
         )
@@ -151,6 +211,6 @@ private extension HomeCoordinator {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 }
-

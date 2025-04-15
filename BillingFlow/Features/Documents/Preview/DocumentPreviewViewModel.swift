@@ -9,6 +9,8 @@ final class DocumentPreviewViewModel: ObservableObject {
     private weak var coordinator: DocumentsCoordinatorProtocol?
     private let pdfGenerator: PDFGenerator
     private let htmlRenderer: DocumentHTMLRenderer
+    private let saveAction: (() async -> Void)?
+    private let signAndSendAction: (() async -> Void)?
 
     // MARK: - Input Data
 
@@ -17,6 +19,8 @@ final class DocumentPreviewViewModel: ObservableObject {
     // MARK: - UI State
 
     @Published private(set) var isGeneratingPDF = false
+    @Published private(set) var isSaving = false
+    @Published private(set) var isSending = false
     @Published private(set) var pdfURL: URL?
     @Published private(set) var errorMessage: String?
     @Published var isShareSheetPresented = false
@@ -27,12 +31,16 @@ final class DocumentPreviewViewModel: ObservableObject {
         document: BusinessDocument,
         router: DocumentsCoordinatorProtocol,
         htmlRenderer: DocumentHTMLRenderer,
-        pdfGenerator: PDFGenerator
+        pdfGenerator: PDFGenerator,
+        saveAction: (() async -> Void)? = nil,
+        signAndSendAction: (() async -> Void)? = nil
     ) {
         self.document = document
         self.coordinator = router
         self.htmlRenderer = htmlRenderer
         self.pdfGenerator = pdfGenerator
+        self.saveAction = saveAction
+        self.signAndSendAction = signAndSendAction
     }
 }
 
@@ -79,13 +87,48 @@ extension DocumentPreviewViewModel {
     }
 
     var isSendDisabled: Bool {
-        isGeneratingPDF
+        isGeneratingPDF || isSaving || isSending
+    }
+
+    var showsSaveAction: Bool {
+        saveAction != nil
+    }
+
+    var saveButtonTitle: String {
+        isSaving ? "Сохраняем..." : "Сохранить"
+    }
+
+    var signAndSendButtonTitle: String {
+        isSending ? "Отправляем..." : "Подписать и отправить"
     }
 }
 
 // MARK: - User Actions
 
 extension DocumentPreviewViewModel {
+    func didTapSave() async {
+        guard let saveAction, isSaving == false, isSending == false else { return }
+
+        errorMessage = nil
+        isSaving = true
+        defer { isSaving = false }
+
+        await saveAction()
+    }
+
+    func didTapSignAndSend() async {
+        guard isSaving == false, isSending == false else { return }
+
+        if let signAndSendAction {
+            errorMessage = nil
+            isSending = true
+            defer { isSending = false }
+            await signAndSendAction()
+        } else {
+            await didTapSend()
+        }
+    }
+
     func didTapSend() async {
         guard !isGeneratingPDF else { return }
 

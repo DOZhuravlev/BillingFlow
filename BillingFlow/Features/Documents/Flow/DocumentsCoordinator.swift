@@ -1,7 +1,7 @@
 import UIKit
 
 @MainActor
-final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
+final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
 
     // MARK: - Navigation
 
@@ -10,6 +10,9 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
     // MARK: - Document Data Dependencies
 
     private let documentsRepository: DocumentsRepositoryProtocol
+    private let organizationsRepository: OrganizationsRepositoryProtocol
+    private let tabBarVisibilityStore: TabBarVisibilityStore
+    private let documentEventsStore: DocumentEventsStore
     private let documentFactory: DocumentFactory
     private let documentValidator: DocumentValidator
 
@@ -25,6 +28,9 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
     init(
         navigationController: UINavigationController,
         documentsRepository: DocumentsRepositoryProtocol,
+        organizationsRepository: OrganizationsRepositoryProtocol,
+        tabBarVisibilityStore: TabBarVisibilityStore,
+        documentEventsStore: DocumentEventsStore,
         documentFactory: DocumentFactory,
         documentValidator: DocumentValidator,
         documentHTMLRenderer: DocumentHTMLRenderer,
@@ -32,18 +38,25 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
     ) {
         self.navigationController = navigationController
         self.documentsRepository = documentsRepository
+        self.organizationsRepository = organizationsRepository
+        self.tabBarVisibilityStore = tabBarVisibilityStore
+        self.documentEventsStore = documentEventsStore
         self.documentFactory = documentFactory
         self.documentValidator = documentValidator
         self.documentHTMLRenderer = documentHTMLRenderer
         self.pdfGenerator = pdfGenerator
+        super.init()
     }
 
     // MARK: - Start coordinator
 
     func start() {
+        navigationController.delegate = self
+
         let viewModel = DocumentsListViewModel(
             coordinator: self,
-            documentsRepository: documentsRepository
+            documentsRepository: documentsRepository,
+            documentEventsStore: documentEventsStore
         )
 
         documentsListViewModel = viewModel
@@ -74,6 +87,7 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
 
@@ -84,6 +98,8 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
             mode: .create(type),
             router: self,
             documentsRepository: documentsRepository,
+            organizationsRepository: organizationsRepository,
+            documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator
         )
@@ -96,6 +112,7 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showDuplicateDocument(document: BusinessDocument) {
@@ -103,6 +120,8 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
             mode: .duplicate(document),
             router: self,
             documentsRepository: documentsRepository,
+            organizationsRepository: organizationsRepository,
+            documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator
         )
@@ -115,6 +134,7 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showEditDocument(document: BusinessDocument) {
@@ -122,6 +142,8 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
             mode: .edit(document),
             router: self,
             documentsRepository: documentsRepository,
+            organizationsRepository: organizationsRepository,
+            documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator
         )
@@ -134,16 +156,43 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     // MARK: - Document Preview Navigation
 
     func showPreview(document: BusinessDocument) {
+        showPreview(
+            document: document,
+            saveAction: nil,
+            signAndSendAction: nil
+        )
+    }
+
+    func showPreview(
+        document: BusinessDocument,
+        saveAction: @escaping () async -> Void,
+        signAndSendAction: @escaping () async -> Void
+    ) {
+        showPreview(
+            document: document,
+            saveAction: Optional(saveAction),
+            signAndSendAction: Optional(signAndSendAction)
+        )
+    }
+
+    private func showPreview(
+        document: BusinessDocument,
+        saveAction: (() async -> Void)?,
+        signAndSendAction: (() async -> Void)?
+    ) {
         let viewModel = DocumentPreviewViewModel(
             document: document,
             router: self,
             htmlRenderer: documentHTMLRenderer,
-            pdfGenerator: pdfGenerator
+            pdfGenerator: pdfGenerator,
+            saveAction: saveAction,
+            signAndSendAction: signAndSendAction
         )
 
         let view = DocumentPreviewScreen(viewModel: viewModel)
@@ -154,6 +203,7 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
         )
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
     
     // MARK: - Flow Completion
@@ -161,6 +211,13 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
     func finishDocumentFlowAfterShare() {
         navigationController.popToRootViewController(animated: true)
         documentsListViewModel?.handleDocumentsDidChange()
+        updateTabBarVisibility()
+    }
+
+    func finishDocumentFlowAfterSave() {
+        navigationController.popToRootViewController(animated: true)
+        documentsListViewModel?.handleDocumentsDidChange()
+        updateTabBarVisibility()
     }
 
     // MARK: - Generic Navigation Actions
@@ -171,5 +228,25 @@ final class DocumentsCoordinator: DocumentsCoordinatorProtocol {
 
     func pop() {
         navigationController.popViewController(animated: true)
+    }
+}
+
+// MARK: - UINavigationControllerDelegate
+
+extension DocumentsCoordinator: UINavigationControllerDelegate {
+    func navigationController(
+        _ navigationController: UINavigationController,
+        didShow viewController: UIViewController,
+        animated: Bool
+    ) {
+        updateTabBarVisibility()
+    }
+}
+
+// MARK: - Tab Bar Visibility
+
+private extension DocumentsCoordinator {
+    func updateTabBarVisibility() {
+        tabBarVisibilityStore.setHidden(navigationController.viewControllers.count > 1)
     }
 }

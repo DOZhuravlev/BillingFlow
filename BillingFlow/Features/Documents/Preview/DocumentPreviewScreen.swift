@@ -163,14 +163,21 @@ private extension DocumentPreviewScreen {
     }
 
     var actionsSection: some View {
-        HStack(spacing: AppSpacing.sm) {
-            secondaryActionButton(
-                title: "Подпись",
-                systemImage: "signature",
-                action: viewModel.didTapSignature
-            )
+        VStack(spacing: AppSpacing.sm) {
+            if viewModel.showsSaveAction {
+                signAndSendButton
+                saveButton
+            } else {
+                HStack(spacing: AppSpacing.sm) {
+                    secondaryActionButton(
+                        title: "Подпись",
+                        systemImage: "signature",
+                        action: viewModel.didTapSignature
+                    )
 
-            sendButton
+                    sendButton
+                }
+            }
         }
     }
 
@@ -210,7 +217,7 @@ private extension DocumentPreviewScreen {
 
     var sendButton: some View {
         Button {
-            Task { await viewModel.didTapSend() }
+            Task { await viewModel.didTapSignAndSend() }
         } label: {
             HStack(spacing: AppSpacing.xs) {
                 if viewModel.isGeneratingPDF {
@@ -232,6 +239,54 @@ private extension DocumentPreviewScreen {
                 RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
                     .fill(viewModel.isSendDisabled ? AppColor.Brand.primary.opacity(0.55) : AppColor.Brand.primary)
             }
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isSendDisabled)
+    }
+
+    var signAndSendButton: some View {
+        Button {
+            Task { await viewModel.didTapSignAndSend() }
+        } label: {
+            HStack(spacing: AppSpacing.xs) {
+                if viewModel.isSending {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "paperplane.fill")
+                }
+
+                Text(viewModel.signAndSendButtonTitle)
+            }
+            .font(AppFont.Control.button)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isSendDisabled)
+    }
+
+    var saveButton: some View {
+        Button {
+            Task { await viewModel.didTapSave() }
+        } label: {
+            HStack(spacing: AppSpacing.xs) {
+                if viewModel.isSaving {
+                    ProgressView()
+                        .tint(AppColor.Brand.primary)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                }
+
+                Text(viewModel.saveButtonTitle)
+            }
+            .font(AppFont.Control.button)
+            .foregroundStyle(AppColor.Brand.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(viewModel.isSendDisabled)
