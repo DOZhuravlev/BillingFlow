@@ -4,18 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{documentTitle}}</title>
+
   <style>
     @page {
-      size: A4;
-      margin: 14mm 10mm 16mm 10mm;
+      size: A4 landscape;
+      margin: 10mm 8mm 10mm 8mm;
     }
 
     :root {
       --text: #111111;
       --muted: #666666;
-      --line: #2b2b2b;
-      --line-soft: #d8d8d8;
-      --bg-soft: #fafafa;
+      --line: #111111;
+      --bg-soft: #f7f7f7;
     }
 
     * {
@@ -29,12 +29,11 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      max-width: 100%;
       color: var(--text);
       background: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-      font-size: 12px;
-      line-height: 1.32;
+      font-size: 9px;
+      line-height: 1.22;
     }
 
     body {
@@ -43,611 +42,376 @@
       overflow-x: hidden;
     }
 
-    .invoice,
     .document {
       width: 100%;
-      max-width: 100%;
-      padding: 36px 28px;
+      padding: 18px 16px;
       overflow: hidden;
     }
 
-    .header {
-      display: table;
-      width: 100%;
-      table-layout: fixed;
-      margin-bottom: 12px;
-    }
-
-    .header__main,
-    .header__aside {
-      display: table-cell;
-      vertical-align: top;
-    }
-
-    .header__main {
-      width: 74%;
-      padding-right: 12px;
-    }
-
-    .header__aside {
-      width: 26%;
-      text-align: right;
-    }
-
-    .company-name {
-      margin: 0 0 5px 0;
-      font-size: 16px;
-      line-height: 1.18;
-      font-weight: 700;
-      overflow-wrap: anywhere;
-      word-break: normal;
-    }
-
-    .company-meta {
-      margin: 0;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.3;
-      white-space: pre-line;
-      overflow-wrap: anywhere;
-      word-break: normal;
-    }
-
-    .logo {
-      max-width: 160px;
-      max-height: 56px;
-      object-fit: contain;
-      display: inline-block;
-    }
-
-    .logo--hidden,
-    .signature--hidden,
-    .stamp--hidden,
-    .comment--hidden,
-    .currency-row--hidden,
-    .vat-row--hidden,
-    .vat-amount-row--hidden,
-    .sign-images--hidden,
-    .basis-row--hidden,
-    .items-vat-column--hidden,
-    .items-vat-cell--hidden,
-    .footer-note--hidden {
-      display: none !important;
-    }
-
-    .bank-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      margin-bottom: 18px;
-      border: 1px solid var(--line);
-    }
-
-    .bank-table td {
-      border: 1px solid var(--line);
-      padding: 5px 7px 16px 7px;
-      vertical-align: top;
-      position: relative;
-      overflow-wrap: anywhere;
-      word-break: normal;
-      white-space: normal;
-      min-height: 28px;
-    }
-
-    .bank-table .label {
-      position: absolute;
-      left: 7px;
-      bottom: 3px;
-      font-size: 9px;
-      color: var(--muted);
-      line-height: 1.05;
-    }
-
-    .bank-table .value {
-      display: block;
-      min-height: 14px;
+    .document-title {
+      margin: 0 0 8px 0;
+      font-size: 14px;
       line-height: 1.2;
-    }
-
-    .bank-table .small {
-      width: 11%;
+      font-weight: 700;
       text-align: center;
+      text-transform: uppercase;
     }
 
-    .bank-table .medium {
-      width: 24%;
-    }
-
-    .bank-table .wide {
-      width: 54%;
-    }
-
-    .title {
-      margin: 14px 0 14px 0;
-      font-size: 18px;
-      line-height: 1.2;
-      font-weight: 700;
-      text-align: left;
-      overflow-wrap: anywhere;
-      word-break: normal;
-    }
-
-    .parties {
+    .meta {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
+      table-layout: fixed;
     }
 
-    .parties td {
-      padding: 2px 0;
+    .meta td {
+      padding: 2px 3px;
       vertical-align: top;
-    }
-
-    .parties__label {
-      width: 98px;
-      padding-right: 8px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .parties__value {
       overflow-wrap: anywhere;
-      word-break: normal;
+    }
+
+    .meta__label {
+      width: 190px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .meta__value {
+      border-bottom: 1px solid var(--line);
+      min-height: 13px;
+    }
+
+    .meta__code {
+      width: 30px;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
     }
 
     .items {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      margin-bottom: 10px;
+      margin-top: 8px;
     }
 
     .items th,
     .items td {
-      border-bottom: 1px solid var(--line);
-      padding: 6px 6px;
+      border: 1px solid var(--line);
+      padding: 3px 3px;
       vertical-align: top;
       white-space: normal;
       overflow-wrap: anywhere;
       word-break: normal;
     }
 
-    .items thead th {
-      font-size: 11px;
+    .items th {
+      font-size: 7.5px;
       font-weight: 600;
-      background: transparent;
-      text-align: left;
+      text-align: center;
+      background: var(--bg-soft);
     }
 
-    .items tbody td {
-      font-size: 11px;
+    .items td {
+      font-size: 8px;
     }
 
-    .items .col-index {
-      width: 32px;
+    .center {
       text-align: center;
     }
 
-    .items .col-name {
-      width: auto;
-    }
-
-    .items .col-qty {
-      width: 78px;
+    .right {
       text-align: right;
     }
 
-    .items .col-unit {
-      width: 72px;
-      text-align: left;
-    }
-
-    .items .col-price {
-      width: 90px;
-      text-align: right;
-    }
-
-    .items .col-vat {
-      width: 54px;
-      text-align: right;
-    }
-
-    .items .col-sum {
-      width: 104px;
-      text-align: right;
-    }
-
-    .totals {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 16px;
-    }
-
-    .totals td {
-      padding: 2px 0;
-      vertical-align: top;
-    }
-
-    .totals__spacer {
-      width: 60%;
-    }
-
-    .totals__label {
-      width: 24%;
-      text-align: right;
-      padding-right: 10px;
-      white-space: nowrap;
-    }
-
-    .totals__value {
-      width: 16%;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    .totals__label--strong,
-    .totals__value--strong {
-      font-weight: 700;
-    }
-
-    .currency-note {
-      margin: -6px 0 14px 0;
-      text-align: right;
-      font-size: 10px;
+    .muted {
       color: var(--muted);
     }
 
-    .summary {
-      margin: 10px 0 16px 0;
-      font-weight: 600;
-      white-space: pre-line;
-      overflow-wrap: anywhere;
-      word-break: normal;
-    }
+    .col-number { width: 24px; }
+    .col-name { width: 150px; }
+    .col-code { width: 42px; }
+    .col-unit { width: 42px; }
+    .col-unit-name { width: 50px; }
+    .col-qty { width: 48px; }
+    .col-price { width: 56px; }
+    .col-sum-no-vat { width: 66px; }
+    .col-excise { width: 48px; }
+    .col-vat-rate { width: 46px; }
+    .col-vat-amount { width: 58px; }
+    .col-total { width: 66px; }
+    .col-country-code { width: 38px; }
+    .col-country-name { width: 60px; }
+    .col-declaration { width: 70px; }
+    .col-trace-unit-code { width: 38px; }
+    .col-trace-unit-name { width: 44px; }
+    .col-trace-qty { width: 48px; }
+    .col-trace-sum { width: 58px; }
 
-    .comment {
-      margin: 0 0 14px 0;
-      color: var(--text);
-      white-space: pre-line;
-      overflow-wrap: anywhere;
-      word-break: normal;
+    .total-row td {
+      font-weight: 700;
+      background: #ffffff;
     }
 
     .signatures {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 18px;
+      table-layout: fixed;
+      margin-top: 14px;
     }
 
     .signatures td {
-      width: 50%;
+      vertical-align: top;
+      padding: 3px 6px;
+    }
+
+    .signature-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .signature-line {
+      display: inline-block;
+      width: 120px;
+      height: 14px;
+      border-bottom: 1px solid var(--line);
       vertical-align: bottom;
     }
 
-    .signatures__position {
-      padding-right: 10px;
-      white-space: nowrap;
-    }
-
-    .signatures__line {
-      padding: 0 8px;
-    }
-
-    .signatures__line-inner {
-      display: block;
-      height: 18px;
+    .signature-name {
+      display: inline-block;
+      width: 120px;
+      height: 14px;
       border-bottom: 1px solid var(--line);
+      vertical-align: bottom;
+      text-align: center;
     }
 
-    .signatures__name {
-      text-align: right;
-      white-space: nowrap;
-      padding-left: 10px;
-    }
-
-    .sign-images {
-      position: relative;
-      height: 84px;
-      margin-top: 8px;
-    }
-
-    .signature {
-      position: absolute;
-      left: 100px;
-      bottom: 18px;
-      max-width: 170px;
-      max-height: 58px;
-      object-fit: contain;
-    }
-
-    .stamp {
-      position: absolute;
-      left: 170px;
-      bottom: -6px;
-      max-width: 112px;
-      max-height: 112px;
-      object-fit: contain;
-      opacity: 0.9;
+    .signature-caption {
+      font-size: 7px;
+      color: var(--muted);
+      margin-top: 2px;
     }
 
     .footer-note {
-      margin-top: 14px;
-      font-size: 10px;
+      margin-top: 8px;
+      font-size: 8px;
       color: var(--muted);
+      white-space: pre-line;
+    }
+
+    .row-hidden,
+    .footer-note--hidden {
+      display: none !important;
     }
 
     @media screen and (max-width: 640px) {
+      .document {
+        padding: 16px 10px;
+      }
+
       html,
       body {
-        font-size: 11px;
+        font-size: 8px;
       }
 
-      .invoice,
-      .document {
-        padding: 24px 18px 28px 18px;
+      .document-title {
+        font-size: 12px;
       }
 
-      .header__main {
-        width: 70%;
-        padding-right: 10px;
+      .items th {
+        font-size: 7px;
       }
 
-      .header__aside {
-        width: 30%;
-      }
-
-      .company-name {
-        font-size: 15px;
-      }
-
-      .company-meta {
-        font-size: 10px;
-      }
-
-      .bank-table td {
-        padding: 5px 6px 14px 6px;
-      }
-
-      .bank-table .label {
-        left: 6px;
-      }
-
-      .bank-table .small {
-        width: 14%;
-      }
-
-      .bank-table .medium {
-        width: 28%;
-      }
-
-      .bank-table .wide {
-        width: 44%;
-      }
-
-      .title {
-        font-size: 16px;
-        margin: 12px 0;
-      }
-
-      .parties__label {
-        width: 86px;
-        padding-right: 6px;
-      }
-
-      .items th,
       .items td {
-        padding: 5px 4px;
-        font-size: 10px;
-      }
-
-      .items .col-index {
-        width: 24px;
-      }
-
-      .items .col-qty {
-        width: 56px;
-      }
-
-      .items .col-unit {
-        width: 52px;
-      }
-
-      .items .col-price {
-        width: 68px;
-      }
-
-      .items .col-vat {
-        width: 44px;
-      }
-
-      .items .col-sum {
-        width: 78px;
-      }
-
-      .totals__spacer {
-        width: 46%;
-      }
-
-      .totals__label {
-        width: 30%;
-        padding-right: 8px;
-      }
-
-      .totals__value {
-        width: 24%;
-      }
-
-      .currency-note,
-      .footer-note {
-        font-size: 9px;
-      }
-
-      .summary,
-      .comment {
-        margin-bottom: 12px;
-      }
-
-      .signatures__position,
-      .signatures__name {
-        white-space: normal;
-      }
-
-      .signature {
-        left: 68px;
-        max-width: 132px;
-      }
-
-      .stamp {
-        left: 118px;
-        max-width: 88px;
-        max-height: 88px;
+        font-size: 7.5px;
       }
     }
   </style>
 </head>
+
 <body>
-  <div class="document invoice">
-    <div class="header">
-      <div class="header__main">
-        <h1 class="company-name">{{companyName}}</h1>
-        <p class="company-meta">{{companyDetails}}</p>
-      </div>
-      <div class="header__aside {{logoHiddenClass}}">
-        <img class="logo" src="{{logoImage}}" alt="Логотип" />
-      </div>
-    </div>
+  <div class="document vat-invoice">
+    <h1 class="document-title">{{documentTitle}} № {{vatInvoiceNumber}} от {{vatInvoiceDate}}</h1>
 
-    <table class="bank-table" aria-label="Банковские реквизиты">
-      <tr>
-        <td class="wide" rowspan="2">
-          <span class="value">{{bankName}}</span>
-          <span class="label">{{bankRecipientLabel}}</span>
-        </td>
-        <td class="small">
-          <span class="value">{{bankBIKLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{bankBIK}}</span>
-        </td>
+    <table class="meta" aria-label="Реквизиты счета-фактуры">
+      <tr class="{{correctionRowHiddenClass}}">
+        <td class="meta__label">Исправление №</td>
+        <td class="meta__value">{{correctionNumber}} от {{correctionDate}}</td>
+        <td class="meta__code">(1а)</td>
       </tr>
+
       <tr>
-        <td class="small">
-          <span class="value">{{bankCorrespondentAccountLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{bankCorrespondentAccount}}</span>
-        </td>
+        <td class="meta__label">Продавец</td>
+        <td class="meta__value">{{sellerName}}</td>
+        <td class="meta__code">(2)</td>
       </tr>
+
       <tr>
-        <td>
-          <span class="value">{{companyName}}</span>
-          <span class="label">{{recipientLabel}}</span>
-        </td>
-        <td class="small">
-          <span class="value">{{companyINNLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyINN}}</span>
-        </td>
+        <td class="meta__label">Адрес</td>
+        <td class="meta__value">{{sellerAddress}}</td>
+        <td class="meta__code">(2а)</td>
       </tr>
+
       <tr>
-        <td rowspan="2">
-          <span class="value"></span>
-        </td>
-        <td class="small">
-          <span class="value">{{companyKPPLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyKPP}}</span>
-        </td>
+        <td class="meta__label">ИНН/КПП продавца</td>
+        <td class="meta__value">{{sellerINNKPP}}</td>
+        <td class="meta__code">(2б)</td>
       </tr>
+
       <tr>
-        <td class="small">
-          <span class="value">{{companyAccountLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyAccount}}</span>
-        </td>
+        <td class="meta__label">Грузоотправитель и его адрес</td>
+        <td class="meta__value">{{shipperDetails}}</td>
+        <td class="meta__code">(3)</td>
+      </tr>
+
+      <tr>
+        <td class="meta__label">Грузополучатель и его адрес</td>
+        <td class="meta__value">{{consigneeDetails}}</td>
+        <td class="meta__code">(4)</td>
+      </tr>
+
+      <tr class="{{paymentDocumentRowHiddenClass}}">
+        <td class="meta__label">К платежно-расчетному документу</td>
+        <td class="meta__value">№ {{paymentDocumentNumber}} от {{paymentDocumentDate}}</td>
+        <td class="meta__code">(5)</td>
+      </tr>
+
+      <tr class="{{shipmentDocumentRowHiddenClass}}">
+        <td class="meta__label">Документ об отгрузке</td>
+        <td class="meta__value">{{shipmentDocumentName}}, № {{shipmentDocumentNumber}} от {{shipmentDocumentDate}}</td>
+        <td class="meta__code">(5а)</td>
+      </tr>
+
+      <tr class="{{advanceInvoiceRowHiddenClass}}">
+        <td class="meta__label">К счету-фактуре, выставленному при получении оплаты</td>
+        <td class="meta__value">№ {{advanceInvoiceNumber}} от {{advanceInvoiceDate}}, исправление № {{advanceCorrectionNumber}} от {{advanceCorrectionDate}}</td>
+        <td class="meta__code">(5б)</td>
+      </tr>
+
+      <tr>
+        <td class="meta__label">Покупатель</td>
+        <td class="meta__value">{{buyerName}}</td>
+        <td class="meta__code">(6)</td>
+      </tr>
+
+      <tr>
+        <td class="meta__label">Адрес</td>
+        <td class="meta__value">{{buyerAddress}}</td>
+        <td class="meta__code">(6а)</td>
+      </tr>
+
+      <tr>
+        <td class="meta__label">ИНН/КПП покупателя</td>
+        <td class="meta__value">{{buyerINNKPP}}</td>
+        <td class="meta__code">(6б)</td>
+      </tr>
+
+      <tr>
+        <td class="meta__label">Валюта: наименование, код</td>
+        <td class="meta__value">{{currencyName}}, {{currencyCode}}</td>
+        <td class="meta__code">(7)</td>
+      </tr>
+
+      <tr class="{{governmentContractRowHiddenClass}}">
+        <td class="meta__label">Идентификатор государственного контракта, договора</td>
+        <td class="meta__value">{{governmentContractId}}</td>
+        <td class="meta__code">(8)</td>
       </tr>
     </table>
 
-    <div class="title">{{documentTitle}} № {{invoiceNumber}} от {{invoiceDate}}</div>
-
-    <table class="parties" aria-label="Информация о сторонах">
-      <tr>
-        <td class="parties__label">{{supplierLabel}}</td>
-        <td class="parties__value">{{supplierDetails}}</td>
-      </tr>
-      <tr>
-        <td class="parties__label">{{buyerLabel}}</td>
-        <td class="parties__value">{{recipientDetails}}</td>
-      </tr>
-      <tr class="{{basisRowHiddenClass}}">
-        <td class="parties__label">{{basisLabel}}</td>
-        <td class="parties__value">{{basisText}}</td>
-      </tr>
-    </table>
-
-    <table class="items" aria-label="Товары и услуги">
+    <table class="items" aria-label="Товары, работы, услуги">
       <thead>
         <tr>
-          <th class="col-index">№</th>
-          <th class="col-name">{{itemsTitleLabel}}</th>
-          <th class="col-qty">{{quantityLabel}}</th>
-          <th class="col-unit">{{unitLabel}}</th>
-          <th class="col-price">{{priceLabel}}</th>
-          <th class="col-vat {{itemsVatColumnHiddenClass}}">{{vatColumnLabel}}</th>
-          <th class="col-sum">{{sumLabel}}</th>
+          <th class="col-number" rowspan="2">№ п/п</th>
+          <th class="col-name" rowspan="2">Наименование товара / описание работ, услуг</th>
+          <th class="col-code" rowspan="2">Код вида товара</th>
+          <th colspan="2">Единица измерения</th>
+          <th class="col-qty" rowspan="2">Количество</th>
+          <th class="col-price" rowspan="2">Цена за единицу</th>
+          <th class="col-sum-no-vat" rowspan="2">Стоимость без налога</th>
+          <th class="col-excise" rowspan="2">Акциз</th>
+          <th class="col-vat-rate" rowspan="2">Ставка НДС</th>
+          <th class="col-vat-amount" rowspan="2">Сумма НДС</th>
+          <th class="col-total" rowspan="2">Стоимость с налогом</th>
+          <th colspan="2">Страна происхождения</th>
+          <th class="col-declaration" rowspan="2">Регистрационный номер декларации / партии товара</th>
+          <th colspan="2">Ед. измерения прослеживаемости</th>
+          <th class="col-trace-qty" rowspan="2">Кол-во прослеживаемого товара</th>
+          <th class="col-trace-sum" rowspan="2">Стоимость прослеживаемого товара без НДС</th>
+        </tr>
+
+        <tr>
+          <th class="col-unit">код</th>
+          <th class="col-unit-name">условное обозначение</th>
+          <th class="col-country-code">код</th>
+          <th class="col-country-name">краткое наименование</th>
+          <th class="col-trace-unit-code">код</th>
+          <th class="col-trace-unit-name">условное обозначение</th>
+        </tr>
+
+        <tr>
+          <th>1</th>
+          <th>1а</th>
+          <th>1б</th>
+          <th>2</th>
+          <th>2а</th>
+          <th>3</th>
+          <th>4</th>
+          <th>5</th>
+          <th>6</th>
+          <th>7</th>
+          <th>8</th>
+          <th>9</th>
+          <th>10</th>
+          <th>10а</th>
+          <th>11</th>
+          <th>12</th>
+          <th>12а</th>
+          <th>13</th>
+          <th>14</th>
         </tr>
       </thead>
+
       <tbody>
         {{itemsRows}}
+
+        <tr class="total-row">
+          <td colspan="7" class="right">Всего к оплате</td>
+          <td class="right">{{totalWithoutVat}}</td>
+          <td class="center">X</td>
+          <td class="center">X</td>
+          <td class="right">{{totalVatAmount}}</td>
+          <td class="right">{{totalWithVat}}</td>
+          <td colspan="7"></td>
+        </tr>
       </tbody>
     </table>
 
-    <table class="totals" aria-label="Итоги документа">
-      <tr class="{{currencyRowHiddenClass}}">
-        <td class="totals__spacer"></td>
-        <td class="totals__label">{{currencyLabel}}</td>
-        <td class="totals__value">{{currencyCode}}</td>
-      </tr>
+    <table class="signatures" aria-label="Подписи">
       <tr>
-        <td class="totals__spacer"></td>
-        <td class="totals__label">{{subtotalLabel}}</td>
-        <td class="totals__value">{{subtotal}}</td>
-      </tr>
-      <tr class="{{vatRowHiddenClass}}">
-        <td class="totals__spacer"></td>
-        <td class="totals__label">{{vatText}}</td>
-        <td class="totals__value">{{vatAmount}}</td>
-      </tr>
-      <tr>
-        <td class="totals__spacer"></td>
-        <td class="totals__label totals__label--strong">{{totalLabel}}</td>
-        <td class="totals__value totals__value--strong">{{total}}</td>
-      </tr>
-    </table>
-
-    <div class="currency-note {{currencyRowHiddenClass}}">{{currencySummaryText}}</div>
-
-    <div class="summary">{{summaryText}}</div>
-
-    <div class="comment {{commentHiddenClass}}">{{comment}}</div>
-
-    <table class="signatures" aria-label="Подпись">
-      <tr>
-        <td class="signatures__position">{{managerPosition}}</td>
         <td>
-          <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-            <tr>
-              <td class="signatures__line"><span class="signatures__line-inner"></span></td>
-              <td class="signatures__name">{{managerName}}</td>
-            </tr>
-          </table>
-          <div class="sign-images {{signImagesHiddenClass}}">
-            <img class="signature {{signatureHiddenClass}}" src="{{signatureImage}}" alt="Подпись" />
-            <img class="stamp {{stampHiddenClass}}" src="{{stampImage}}" alt="Печать" />
-          </div>
+          <div class="signature-title">Руководитель организации или иное уполномоченное лицо</div>
+          <span class="signature-line"></span>
+          <span class="signature-name">{{directorName}}</span>
+          <div class="signature-caption">подпись / ф.и.о.</div>
+        </td>
+
+        <td>
+          <div class="signature-title">Главный бухгалтер или иное уполномоченное лицо</div>
+          <span class="signature-line"></span>
+          <span class="signature-name">{{accountantName}}</span>
+          <div class="signature-caption">подпись / ф.и.о.</div>
+        </td>
+      </tr>
+
+      <tr class="{{individualEntrepreneurRowHiddenClass}}">
+        <td colspan="2">
+          <div class="signature-title">Индивидуальный предприниматель или иное уполномоченное лицо</div>
+          <span class="signature-line"></span>
+          <span class="signature-name">{{entrepreneurName}}</span>
+          <span class="signature-name">{{entrepreneurOGRNIP}}</span>
+          <div class="signature-caption">подпись / ф.и.о. / ОГРНИП и дата присвоения</div>
         </td>
       </tr>
     </table>

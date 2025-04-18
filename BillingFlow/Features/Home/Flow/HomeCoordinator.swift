@@ -27,6 +27,7 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
 
         let viewModel = HomeViewModel(coordinator: self,
                                       documentsRepository: dependencies.documentsRepository,
+                                      organizationsRepository: dependencies.organizationsRepository,
                                       documentEventsStore: dependencies.documentEventsStore
         )
 

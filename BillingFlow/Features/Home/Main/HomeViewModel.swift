@@ -17,12 +17,13 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private(set) var recentDocuments: [DocumentCardItem] = []
     @Published private(set) var topOrganizations: [TopOrganizationMetric] = []
-    @Published private(set) var latestDocument: BusinessDocument?
+    private var documentsByID: [UUID: BusinessDocument] = [:]
 
     // MARK: - Dependencies
 
     private weak var coordinator: HomeCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
+    private let organizationsRepository: OrganizationsRepositoryProtocol
     private let documentCardItemMapper: DocumentCardItemMapper
     private var cancellables = Set<AnyCancellable>()
 
@@ -31,11 +32,13 @@ final class HomeViewModel: ObservableObject {
     init(
         coordinator: HomeCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
+        organizationsRepository: OrganizationsRepositoryProtocol,
         documentEventsStore: DocumentEventsStore? = nil,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
     ) {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
+        self.organizationsRepository = organizationsRepository
         self.documentCardItemMapper = documentCardItemMapper
         bindDocumentEvents(documentEventsStore)
     }
@@ -76,14 +79,6 @@ extension HomeViewModel {
     }
 }
 
-// MARK: - Derived State
-
-extension HomeViewModel {
-    var canDuplicateLatestDocument: Bool {
-        latestDocument != nil
-    }
-}
-
 // MARK: - User Actions
 
 extension HomeViewModel {
@@ -91,9 +86,9 @@ extension HomeViewModel {
         coordinator?.showCreateDocument(type: type)
     }
 
-    func didTapDuplicateLatestDocument() {
-        guard let latestDocument else { return }
-        coordinator?.showDuplicateDocument(latestDocument)
+    func didTapDocument(id: UUID) {
+        guard let document = documentsByID[id] else { return }
+        coordinator?.showDocument(document)
     }
 
     func didTapDocument(document: BusinessDocument) {
@@ -113,6 +108,7 @@ private extension HomeViewModel {
     func performLoad() async {
         do {
             let documents = try await documentsRepository.fetchDocuments()
+            let organizations = try await organizationsRepository.fetchOrganizations()
 
             guard documents.isEmpty == false else {
                 clearContent()
@@ -120,7 +116,7 @@ private extension HomeViewModel {
                 return
             }
 
-            buildContent(from: documents)
+            buildContent(documents: documents, organizations: organizations)
             state = .loaded
         } catch {
             clearContent()
@@ -132,10 +128,16 @@ private extension HomeViewModel {
 // MARK: - Content Building
 
 private extension HomeViewModel {
-    func buildContent(from documents: [BusinessDocument]) {
-        latestDocument = documents.max(by: { $0.date < $1.date })
+    func buildContent(
+        documents: [BusinessDocument],
+        organizations: [Organization]
+    ) {
+        documentsByID = Dictionary(uniqueKeysWithValues: documents.map { ($0.id, $0) })
         recentDocuments = makeRecentDocuments(from: documents)
-        topOrganizations = makeTopOrganizations(from: documents)
+        topOrganizations = makeTopOrganizations(
+            organizations: organizations,
+            documents: documents
+        )
     }
 
     func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
@@ -145,32 +147,57 @@ private extension HomeViewModel {
             .map(documentCardItemMapper.map)
     }
 
-    func makeTopOrganizations(from documents: [BusinessDocument]) -> [TopOrganizationMetric] {
-        // TODO: Replace with real grouping.
-        [
-            TopOrganizationMetric(
-                id: "mock-alfa",
-                name: "ООО Альфа",
-                documentCount: 8,
-                totalAmount: "185 000 ₽"
-            ),
-            TopOrganizationMetric(
-                id: "mock-vector",
-                name: "ООО Вектор",
-                documentCount: 5,
-                totalAmount: "92 500 ₽"
-            ),
-            TopOrganizationMetric(
-                id: "mock-petrov",
-                name: "ИП Петров П.П.",
-                documentCount: 3,
-                totalAmount: "74 000 ₽"
-            )
-        ]
+    func makeTopOrganizations(
+        organizations: [Organization],
+        documents: [BusinessDocument]
+    ) -> [TopOrganizationMetric] {
+        let organizationsByKey = organizations.reduce(into: [String: Organization]()) { result, organization in
+            result[organization.matchingKey] = organization
+        }
+        var metricsByKey: [String: (organization: Organization, count: Int, total: Decimal, currencyCode: String)] = [:]
+
+        for document in documents where document.buyer.isEmpty == false {
+            let organization = Organization(party: document.buyer, role: .buyer)
+            let key = organization.matchingKey
+            let storedOrganization = organizationsByKey[key] ?? organization
+
+            if var metric = metricsByKey[key] {
+                metric.count += 1
+                metric.total += document.totals.total
+                metricsByKey[key] = metric
+            } else {
+                metricsByKey[key] = (
+                    organization: storedOrganization,
+                    count: 1,
+                    total: document.totals.total,
+                    currencyCode: document.currencyCode
+                )
+            }
+        }
+
+        return metricsByKey.values
+            .sorted { lhs, rhs in
+                if lhs.count == rhs.count {
+                    return lhs.total > rhs.total
+                }
+                return lhs.count > rhs.count
+            }
+            .prefix(3)
+            .map { metric in
+                TopOrganizationMetric(
+                    id: metric.organization.matchingKey,
+                    name: metric.organization.party.displayName,
+                    documentCount: metric.count,
+                    totalAmount: CurrencyFormatter.amountText(
+                        metric.total,
+                        currencyCode: metric.currencyCode
+                    )
+                )
+            }
     }
 
     func clearContent() {
-        latestDocument = nil
+        documentsByID = [:]
         recentDocuments = []
         topOrganizations = []
     }

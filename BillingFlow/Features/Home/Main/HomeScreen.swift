@@ -153,17 +153,6 @@ private extension HomeScreen {
 
                     quickActionButton(
                         metric: FinanceMetric(
-                            title: "Скопировать",
-                            amount: "Копия",
-                            style: .neutral
-                        ),
-                        isEnabled: viewModel.canDuplicateLatestDocument
-                    ) {
-                        viewModel.didTapDuplicateLatestDocument()
-                    }
-
-                    quickActionButton(
-                        metric: FinanceMetric(
                             title: "Создать акт",
                             amount: "Акт",
                             style: .pending
@@ -203,7 +192,7 @@ private extension HomeScreen {
                         statusStyle: document.statusStyle
                     )
                     .onTapGesture {
-                        //viewModel.didTapDocument(id: document.id)
+                        viewModel.didTapDocument(id: document.id)
                     }
                 }
             }
@@ -329,7 +318,7 @@ private extension HomeScreen {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.md) {
-                    ForEach(0..<4, id: \.self) { _ in
+                    ForEach(0..<3, id: \.self) { _ in
                         skeletonMetricCard
                             .frame(width: 148)
                     }
@@ -476,7 +465,7 @@ private extension HomeScreen {
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.primary)
 
-                    Text("Счетов - \(organization.documentCount)")
+                    Text("Документов - \(organization.documentCount)")
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
                 }
@@ -509,7 +498,8 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.loaded
+                documentsRepository: PreviewDocumentsRepository.loaded,
+                organizationsRepository: PreviewOrganizationsRepository.loaded
             )
         )
     }
@@ -520,7 +510,8 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.loading
+                documentsRepository: PreviewDocumentsRepository.loading,
+                organizationsRepository: PreviewOrganizationsRepository.loaded
             )
         )
     }
@@ -531,7 +522,8 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.empty
+                documentsRepository: PreviewDocumentsRepository.empty,
+                organizationsRepository: PreviewOrganizationsRepository.empty
             )
         )
     }
@@ -542,7 +534,8 @@ private extension HomeScreen {
         HomeScreen(
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
-                documentsRepository: PreviewDocumentsRepository.failure
+                documentsRepository: PreviewDocumentsRepository.failure,
+                organizationsRepository: PreviewOrganizationsRepository.loaded
             )
         )
     }
@@ -689,4 +682,35 @@ private extension PreviewDocumentsRepository {
             status: .shared
         )
     ]
+}
+
+private struct PreviewOrganizationsRepository: OrganizationsRepositoryProtocol {
+
+    static let loaded = PreviewOrganizationsRepository(organizations: [
+        Organization(
+            party: DocumentParty(
+                displayName: "ООО Альфа",
+                taxID: "7701234567"
+            ),
+            role: .buyer
+        ),
+        Organization(
+            party: DocumentParty(
+                displayName: "ООО Вектор",
+                taxID: "6678123456"
+            ),
+            role: .buyer
+        )
+    ])
+    static let empty = PreviewOrganizationsRepository(organizations: [])
+
+    let organizations: [Organization]
+
+    func fetchOrganizations() async throws -> [Organization] {
+        organizations
+    }
+
+    func save(organization: Organization) async throws { }
+
+    func upsert(party: DocumentParty, role: Organization.Role) async throws { }
 }

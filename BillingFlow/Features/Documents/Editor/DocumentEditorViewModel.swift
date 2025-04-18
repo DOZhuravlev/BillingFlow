@@ -11,7 +11,7 @@ final class DocumentEditorViewModel: ObservableObject {
     }
 
     enum Step: Int, CaseIterable, Identifiable {
-        case type
+        case start
         case seller
         case buyer
         case details
@@ -23,8 +23,8 @@ final class DocumentEditorViewModel: ObservableObject {
 
         var title: String {
             switch self {
-            case .type:
-                return "Тип"
+            case .start:
+                return "Старт"
             case .seller:
                 return "Продавец"
             case .buyer:
@@ -59,9 +59,9 @@ final class DocumentEditorViewModel: ObservableObject {
     // MARK: - State
 
     @Published var draft: DocumentDraft
-    @Published var currentStep: Step = .type
+    @Published var currentStep: Step = .start
     @Published private(set) var organizationOptions: [OrganizationOption] = []
-    @Published private(set) var recentInvoiceTemplates: [BusinessDocument] = []
+    @Published private(set) var recentDocumentTemplates: [BusinessDocument] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
     @Published private(set) var isSending = false
@@ -76,6 +76,7 @@ final class DocumentEditorViewModel: ObservableObject {
     private let documentEventsStore: DocumentEventsStore
     private let documentFactory: DocumentFactory
     private let documentValidator: DocumentValidator
+    private var loadedDocuments: [BusinessDocument] = []
 
     // MARK: - Initialization
 
@@ -100,13 +101,9 @@ final class DocumentEditorViewModel: ObservableObject {
             documentFactory: documentFactory
         )
 
-        if draft.type == .invoice {
-            self.draft = Self.loadAutosavedDraft(key: autosaveKey) ?? draft
-        }
+        self.draft = Self.loadAutosavedDraft(key: autosaveKey) ?? draft
 
-        if draft.items.isEmpty {
-            addItem()
-        }
+        Self.normalizeItems(in: &draft)
     }
 }
 
@@ -131,8 +128,8 @@ extension DocumentEditorViewModel {
 
     var canMoveForward: Bool {
         switch currentStep {
-        case .type:
-            return draft.type == .invoice
+        case .start:
+            return true
         case .seller:
             return draft.seller.isEmpty == false
         case .buyer:
@@ -160,8 +157,279 @@ extension DocumentEditorViewModel {
     }
 
     var navigationTitle: String {
-        isEditing ? "Редактирование счета" : "Новый счет"
+        isEditing ? "Редактирование \(documentKindName)" : "Новый \(documentKindName)"
     }
+
+    var documentKindName: String {
+        switch draft.type {
+        case .invoice:
+            return "счет"
+        case .act:
+            return "акт"
+        case .deliveryNote:
+            return "счет-фактура"
+        }
+    }
+
+    var startStepTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Новый счет"
+        case .act:
+            return "Новый акт"
+        case .deliveryNote:
+            return "Новая счет-фактура"
+        }
+    }
+
+    var startStepSubtitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Можно заполнить с нуля или взять за основу прошлый счет."
+        case .act:
+            return "Можно заполнить с нуля или взять за основу прошлый акт."
+        case .deliveryNote:
+            return "Можно заполнить с нуля или взять за основу прошлую счет-фактуру."
+        }
+    }
+
+    var templatesTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Создать на основе прошлого счета"
+        case .act:
+            return "Создать на основе прошлого акта"
+        case .deliveryNote:
+            return "Создать на основе прошлой счет-фактуры"
+        }
+    }
+
+    var freshDocumentTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Создать новый счет"
+        case .act:
+            return "Создать новый акт"
+        case .deliveryNote:
+            return "Создать новую счет-фактуру"
+        }
+    }
+
+    var freshDocumentSubtitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Продавец, покупатель, реквизиты, позиции и НДС."
+        case .act:
+            return "Исполнитель, заказчик, реквизиты и выполненные работы."
+        case .deliveryNote:
+            return "Продавец, получатель, реквизиты, позиции и НДС."
+        }
+    }
+
+    var documentIconName: String {
+        switch draft.type {
+        case .invoice:
+            return "doc.text.fill"
+        case .act:
+            return "checklist.checked"
+        case .deliveryNote:
+            return "building.columns.fill"
+        }
+    }
+
+    var sellerStepTitle: String {
+        switch draft.type {
+        case .invoice, .deliveryNote:
+            return "Кто выставляет документ"
+        case .act:
+            return "Кто выполняет работы"
+        }
+    }
+
+    var sellerStepSubtitle: String {
+        switch draft.type {
+        case .invoice, .deliveryNote:
+            return "Выберите продавца из организаций или заполните реквизиты вручную."
+        case .act:
+            return "Выберите исполнителя из организаций или заполните реквизиты вручную."
+        }
+    }
+
+    var buyerStepTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Кому выставляем счет"
+        case .act:
+            return "Кто принимает работы"
+        case .deliveryNote:
+            return "Кому выставляем счет-фактуру"
+        }
+    }
+
+    var buyerStepSubtitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Покупатель подтянется из ранее добавленных и использованных организаций."
+        case .act:
+            return "Заказчик подтянется из ранее добавленных и использованных организаций."
+        case .deliveryNote:
+            return "Получатель подтянется из ранее добавленных и использованных организаций."
+        }
+    }
+
+    var detailsStepTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Реквизиты счета"
+        case .act:
+            return "Реквизиты акта"
+        case .deliveryNote:
+            return "Реквизиты счет-фактуры"
+        }
+    }
+
+    var detailsStepSubtitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Номер можно поправить вручную, дату и НДС применим ко всем позициям."
+        case .act:
+            return "Номер и дату можно поправить вручную, позиции пойдут в акт выполненных работ."
+        case .deliveryNote:
+            return "Номер, дату и НДС применим к позициям счет-фактуры."
+        }
+    }
+
+    var numberFieldTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Номер счета"
+        case .act:
+            return "Номер акта"
+        case .deliveryNote:
+            return "Номер счет-фактуры"
+        }
+    }
+
+    var dateFieldTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Дата счета"
+        case .act:
+            return "Дата акта"
+        case .deliveryNote:
+            return "Дата счет-фактуры"
+        }
+    }
+
+    var showsVATSelector: Bool {
+        switch draft.type {
+        case .invoice, .deliveryNote:
+            return true
+        case .act:
+            return false
+        }
+    }
+
+    var itemsStepTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Позиции счета"
+        case .act:
+            return "Работы и услуги"
+        case .deliveryNote:
+            return "Позиции счет-фактуры"
+        }
+    }
+
+    var itemsStepSubtitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Строки выглядят как в счете: услуга, количество, цена и сумма."
+        case .act:
+            return "Укажите выполненные работы или услуги, количество, единицу и стоимость."
+        case .deliveryNote:
+            return "Укажите товары или услуги, количество, цену и сумму для счет-фактуры."
+        }
+    }
+
+    var itemTitleLabel: String {
+        switch draft.type {
+        case .invoice:
+            return "Название услуги или товара"
+        case .act:
+            return "Название работы или услуги"
+        case .deliveryNote:
+            return "Наименование товара или услуги"
+        }
+    }
+
+    var itemTitlePlaceholder: String {
+        switch draft.type {
+        case .invoice:
+            return "Услуга или товар"
+        case .act:
+            return "Работа или услуга"
+        case .deliveryNote:
+            return "Товар или услуга"
+        }
+    }
+
+    var reviewStepTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Проверьте счет"
+        case .act:
+            return "Проверьте акт"
+        case .deliveryNote:
+            return "Проверьте счет-фактуру"
+        }
+    }
+
+    var reviewStepSubtitle: String {
+        "Все ключевые параметры собраны в короткий экран перед сохранением."
+    }
+
+    var sellerReviewTitle: String {
+        draft.type == .act ? "Исполнитель" : "Продавец"
+    }
+
+    var buyerReviewTitle: String {
+        switch draft.type {
+        case .invoice:
+            return "Покупатель"
+        case .act:
+            return "Заказчик"
+        case .deliveryNote:
+            return "Получатель"
+        }
+    }
+
+    func title(for step: Step) -> String {
+        switch step {
+        case .start:
+            return "Старт"
+        case .seller:
+            return draft.type == .act ? "Исполнитель" : "Продавец"
+        case .buyer:
+            switch draft.type {
+            case .invoice:
+                return "Покупатель"
+            case .act:
+                return "Заказчик"
+            case .deliveryNote:
+                return "Получатель"
+            }
+        case .details:
+            return "Реквизиты"
+        case .items:
+            return "Позиции"
+        case .notes:
+            return "Комментарий"
+        case .review:
+            return "Проверка"
+        }
+    }
+
 }
 
 // MARK: - Loading
@@ -175,13 +443,12 @@ extension DocumentEditorViewModel {
         do {
             let documents = try await documentsRepository.fetchDocuments()
             let storedOrganizations = try await organizationsRepository.fetchOrganizations()
+            loadedDocuments = documents
             organizationOptions = Self.makeOrganizationOptions(
                 storedOrganizations: storedOrganizations,
                 documents: documents
             )
-            recentInvoiceTemplates = documents
-                .filter { $0.type == .invoice }
-                .sorted { $0.date > $1.date }
+            updateRecentDocumentTemplates()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -234,9 +501,10 @@ extension DocumentEditorViewModel {
 extension DocumentEditorViewModel {
     func useTemplate(_ document: BusinessDocument) {
         draft = documentFactory.makeDuplicateDraft(from: document)
-        draft.type = .invoice
         draft.updatedAt = Date()
+        Self.normalizeItems(in: &draft)
         currentStep = .seller
+        updateRecentDocumentTemplates()
         autosaveDraft()
     }
 }
@@ -304,7 +572,7 @@ extension DocumentEditorViewModel {
                 DocumentItem(
                     title: "",
                     quantity: 1,
-                    unit: "шт",
+                    unit: Self.defaultUnit(for: draft.type),
                     price: 0,
                     vatRate: draft.items.first?.vatRate
                 )
@@ -317,7 +585,7 @@ extension DocumentEditorViewModel {
         updateDraft { draft in
             draft.items.removeAll(where: { $0.id == id })
             if draft.items.isEmpty {
-                draft.items.append(DocumentItem(vatRate: currentVATRate))
+                draft.items.append(DocumentItem(unit: Self.defaultUnit(for: draft.type), vatRate: currentVATRate))
             }
         }
     }
@@ -471,6 +739,33 @@ private extension DocumentEditorViewModel {
             }
     }
 
+    func updateRecentDocumentTemplates() {
+        recentDocumentTemplates = loadedDocuments
+            .filter { $0.type == draft.type }
+            .sorted { $0.date > $1.date }
+    }
+
+    static func defaultUnit(for type: DocumentType) -> String {
+        switch type {
+        case .invoice, .deliveryNote:
+            return "шт"
+        case .act:
+            return "услуга"
+        }
+    }
+
+    static func normalizeItems(in draft: inout DocumentDraft) {
+        if draft.items.isEmpty {
+            draft.items.append(DocumentItem(unit: defaultUnit(for: draft.type)))
+        }
+
+        guard draft.type == .act else { return }
+
+        for index in draft.items.indices {
+            draft.items[index].vatRate = nil
+        }
+    }
+
     static func merge(
         party: DocumentParty,
         role: Organization.Role,
@@ -498,17 +793,15 @@ private extension DocumentEditorViewModel {
     var autosaveKey: String {
         switch mode {
         case .create:
-            return "billingflow.invoiceWizard.autosave.create"
+            return "billingflow.documentWizard.autosave.create.\(draft.type.rawValue)"
         case .duplicate:
-            return "billingflow.invoiceWizard.autosave.duplicate.\(draft.sourceDocumentID?.uuidString ?? draft.id.uuidString)"
+            return "billingflow.documentWizard.autosave.duplicate.\(draft.sourceDocumentID?.uuidString ?? draft.id.uuidString)"
         case .edit(let document):
-            return "billingflow.invoiceWizard.autosave.edit.\(document.id.uuidString)"
+            return "billingflow.documentWizard.autosave.edit.\(document.id.uuidString)"
         }
     }
 
     func autosaveDraft() {
-        guard draft.type == .invoice else { return }
-
         do {
             let data = try JSONEncoder.autosaveEncoder.encode(draft)
             UserDefaults.standard.set(data, forKey: autosaveKey)

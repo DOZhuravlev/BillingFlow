@@ -62,6 +62,10 @@ extension DocumentDetailViewModel {
         let notes = document.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         return notes.isEmpty ? nil : notes
     }
+
+    var canEdit: Bool {
+        document.status == .draft
+    }
 }
 
 // MARK: - User Actions

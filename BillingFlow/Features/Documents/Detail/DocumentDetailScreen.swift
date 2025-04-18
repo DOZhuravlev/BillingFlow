@@ -72,12 +72,14 @@ private extension DocumentDetailScreen {
 
     var actionsSection: some View {
         VStack(spacing: AppSpacing.sm) {
-            actionButton(
-                title: "Редактировать",
-                systemImage: "pencil",
-                style: .primary,
-                action: viewModel.didTapEdit
-            )
+            if viewModel.canEdit {
+                actionButton(
+                    title: "Редактировать",
+                    systemImage: "pencil",
+                    style: .primary,
+                    action: viewModel.didTapEdit
+                )
+            }
 
             HStack(spacing: AppSpacing.sm) {
                 actionButton(

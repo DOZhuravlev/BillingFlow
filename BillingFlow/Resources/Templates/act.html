@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{documentTitle}}</title>
+
   <style>
     @page {
       size: A4;
@@ -29,12 +30,11 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      max-width: 100%;
       color: var(--text);
       background: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
       font-size: 12px;
-      line-height: 1.32;
+      line-height: 1.35;
     }
 
     body {
@@ -43,10 +43,8 @@
       overflow-x: hidden;
     }
 
-    .invoice,
     .document {
       width: 100%;
-      max-width: 100%;
       padding: 36px 28px;
       overflow: hidden;
     }
@@ -55,7 +53,7 @@
       display: table;
       width: 100%;
       table-layout: fixed;
-      margin-bottom: 12px;
+      margin-bottom: 18px;
     }
 
     .header__main,
@@ -80,7 +78,6 @@
       line-height: 1.18;
       font-weight: 700;
       overflow-wrap: anywhere;
-      word-break: normal;
     }
 
     .company-meta {
@@ -90,7 +87,6 @@
       line-height: 1.3;
       white-space: pre-line;
       overflow-wrap: anywhere;
-      word-break: normal;
     }
 
     .logo {
@@ -104,72 +100,37 @@
     .signature--hidden,
     .stamp--hidden,
     .comment--hidden,
-    .currency-row--hidden,
-    .vat-row--hidden,
-    .vat-amount-row--hidden,
-    .sign-images--hidden,
     .basis-row--hidden,
-    .items-vat-column--hidden,
-    .items-vat-cell--hidden,
+    .sign-images--hidden,
     .footer-note--hidden {
       display: none !important;
     }
 
-    .bank-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      margin-bottom: 18px;
-      border: 1px solid var(--line);
-    }
-
-    .bank-table td {
-      border: 1px solid var(--line);
-      padding: 5px 7px 16px 7px;
-      vertical-align: top;
-      position: relative;
-      overflow-wrap: anywhere;
-      word-break: normal;
-      white-space: normal;
-      min-height: 28px;
-    }
-
-    .bank-table .label {
-      position: absolute;
-      left: 7px;
-      bottom: 3px;
-      font-size: 9px;
-      color: var(--muted);
-      line-height: 1.05;
-    }
-
-    .bank-table .value {
-      display: block;
-      min-height: 14px;
-      line-height: 1.2;
-    }
-
-    .bank-table .small {
-      width: 11%;
-      text-align: center;
-    }
-
-    .bank-table .medium {
-      width: 24%;
-    }
-
-    .bank-table .wide {
-      width: 54%;
-    }
-
     .title {
-      margin: 14px 0 14px 0;
+      margin: 18px 0 16px 0;
       font-size: 18px;
-      line-height: 1.2;
+      line-height: 1.25;
       font-weight: 700;
-      text-align: left;
+      text-align: center;
       overflow-wrap: anywhere;
-      word-break: normal;
+    }
+
+    .act-place-date {
+      display: table;
+      width: 100%;
+      margin-bottom: 16px;
+      table-layout: fixed;
+    }
+
+    .act-place,
+    .act-date {
+      display: table-cell;
+      vertical-align: top;
+      font-size: 12px;
+    }
+
+    .act-date {
+      text-align: right;
     }
 
     .parties {
@@ -179,7 +140,7 @@
     }
 
     .parties td {
-      padding: 2px 0;
+      padding: 3px 0;
       vertical-align: top;
     }
 
@@ -192,31 +153,35 @@
 
     .parties__value {
       overflow-wrap: anywhere;
-      word-break: normal;
+    }
+
+    .intro {
+      margin: 12px 0 14px 0;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
     }
 
     .items {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .items th,
     .items td {
-      border-bottom: 1px solid var(--line);
+      border: 1px solid var(--line);
       padding: 6px 6px;
       vertical-align: top;
       white-space: normal;
       overflow-wrap: anywhere;
-      word-break: normal;
     }
 
     .items thead th {
       font-size: 11px;
       font-weight: 600;
-      background: transparent;
       text-align: left;
+      background: var(--bg-soft);
     }
 
     .items tbody td {
@@ -224,7 +189,7 @@
     }
 
     .items .col-index {
-      width: 32px;
+      width: 34px;
       text-align: center;
     }
 
@@ -243,24 +208,19 @@
     }
 
     .items .col-price {
-      width: 90px;
-      text-align: right;
-    }
-
-    .items .col-vat {
-      width: 54px;
+      width: 92px;
       text-align: right;
     }
 
     .items .col-sum {
-      width: 104px;
+      width: 108px;
       text-align: right;
     }
 
     .totals {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .totals td {
@@ -269,11 +229,11 @@
     }
 
     .totals__spacer {
-      width: 60%;
+      width: 62%;
     }
 
     .totals__label {
-      width: 24%;
+      width: 22%;
       text-align: right;
       padding-right: 10px;
       white-space: nowrap;
@@ -285,16 +245,8 @@
       white-space: nowrap;
     }
 
-    .totals__label--strong,
-    .totals__value--strong {
+    .totals__strong {
       font-weight: 700;
-    }
-
-    .currency-note {
-      margin: -6px 0 14px 0;
-      text-align: right;
-      font-size: 10px;
-      color: var(--muted);
     }
 
     .summary {
@@ -302,78 +254,95 @@
       font-weight: 600;
       white-space: pre-line;
       overflow-wrap: anywhere;
-      word-break: normal;
+    }
+
+    .acceptance-text {
+      margin: 12px 0 18px 0;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
     }
 
     .comment {
       margin: 0 0 14px 0;
-      color: var(--text);
       white-space: pre-line;
       overflow-wrap: anywhere;
-      word-break: normal;
     }
 
     .signatures {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 18px;
+      table-layout: fixed;
+      margin-top: 24px;
     }
 
     .signatures td {
       width: 50%;
-      vertical-align: bottom;
+      vertical-align: top;
     }
 
-    .signatures__position {
-      padding-right: 10px;
-      white-space: nowrap;
+    .signature-block {
+      padding-right: 16px;
     }
 
-    .signatures__line {
-      padding: 0 8px;
+    .signature-block--right {
+      padding-right: 0;
+      padding-left: 16px;
     }
 
-    .signatures__line-inner {
+    .signature-title {
+      margin-bottom: 22px;
+      font-weight: 700;
+    }
+
+    .signature-line {
       display: block;
-      height: 18px;
+      height: 22px;
       border-bottom: 1px solid var(--line);
+      margin-bottom: 4px;
     }
 
-    .signatures__name {
-      text-align: right;
-      white-space: nowrap;
-      padding-left: 10px;
+    .signature-caption {
+      color: var(--muted);
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .signature-name {
+      margin-top: 8px;
+      text-align: center;
+      white-space: pre-line;
     }
 
     .sign-images {
       position: relative;
       height: 84px;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
     .signature {
       position: absolute;
-      left: 100px;
+      left: 54px;
       bottom: 18px;
-      max-width: 170px;
-      max-height: 58px;
+      max-width: 150px;
+      max-height: 54px;
       object-fit: contain;
     }
 
     .stamp {
       position: absolute;
-      left: 170px;
+      left: 118px;
       bottom: -6px;
-      max-width: 112px;
-      max-height: 112px;
+      max-width: 96px;
+      max-height: 96px;
       object-fit: contain;
       opacity: 0.9;
     }
 
     .footer-note {
-      margin-top: 14px;
+      margin-top: 16px;
       font-size: 10px;
       color: var(--muted);
+      white-space: pre-line;
     }
 
     @media screen and (max-width: 640px) {
@@ -382,18 +351,8 @@
         font-size: 11px;
       }
 
-      .invoice,
       .document {
         padding: 24px 18px 28px 18px;
-      }
-
-      .header__main {
-        width: 70%;
-        padding-right: 10px;
-      }
-
-      .header__aside {
-        width: 30%;
       }
 
       .company-name {
@@ -404,34 +363,12 @@
         font-size: 10px;
       }
 
-      .bank-table td {
-        padding: 5px 6px 14px 6px;
-      }
-
-      .bank-table .label {
-        left: 6px;
-      }
-
-      .bank-table .small {
-        width: 14%;
-      }
-
-      .bank-table .medium {
-        width: 28%;
-      }
-
-      .bank-table .wide {
-        width: 44%;
-      }
-
       .title {
         font-size: 16px;
-        margin: 12px 0;
       }
 
       .parties__label {
         width: 86px;
-        padding-right: 6px;
       }
 
       .items th,
@@ -441,7 +378,7 @@
       }
 
       .items .col-index {
-        width: 24px;
+        width: 26px;
       }
 
       .items .col-qty {
@@ -453,134 +390,75 @@
       }
 
       .items .col-price {
-        width: 68px;
-      }
-
-      .items .col-vat {
-        width: 44px;
+        width: 72px;
       }
 
       .items .col-sum {
-        width: 78px;
+        width: 84px;
       }
 
       .totals__spacer {
-        width: 46%;
+        width: 48%;
       }
 
       .totals__label {
         width: 30%;
-        padding-right: 8px;
       }
 
       .totals__value {
-        width: 24%;
+        width: 22%;
       }
 
-      .currency-note,
-      .footer-note {
-        font-size: 9px;
+      .signature-block {
+        padding-right: 8px;
       }
 
-      .summary,
-      .comment {
-        margin-bottom: 12px;
-      }
-
-      .signatures__position,
-      .signatures__name {
-        white-space: normal;
+      .signature-block--right {
+        padding-left: 8px;
       }
 
       .signature {
-        left: 68px;
-        max-width: 132px;
+        left: 36px;
+        max-width: 118px;
       }
 
       .stamp {
-        left: 118px;
-        max-width: 88px;
-        max-height: 88px;
+        left: 82px;
+        max-width: 78px;
+        max-height: 78px;
       }
     }
   </style>
 </head>
+
 <body>
-  <div class="document invoice">
+  <div class="document act">
     <div class="header">
       <div class="header__main">
         <h1 class="company-name">{{companyName}}</h1>
         <p class="company-meta">{{companyDetails}}</p>
       </div>
+
       <div class="header__aside {{logoHiddenClass}}">
         <img class="logo" src="{{logoImage}}" alt="Логотип" />
       </div>
     </div>
 
-    <table class="bank-table" aria-label="Банковские реквизиты">
-      <tr>
-        <td class="wide" rowspan="2">
-          <span class="value">{{bankName}}</span>
-          <span class="label">{{bankRecipientLabel}}</span>
-        </td>
-        <td class="small">
-          <span class="value">{{bankBIKLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{bankBIK}}</span>
-        </td>
-      </tr>
-      <tr>
-        <td class="small">
-          <span class="value">{{bankCorrespondentAccountLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{bankCorrespondentAccount}}</span>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <span class="value">{{companyName}}</span>
-          <span class="label">{{recipientLabel}}</span>
-        </td>
-        <td class="small">
-          <span class="value">{{companyINNLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyINN}}</span>
-        </td>
-      </tr>
-      <tr>
-        <td rowspan="2">
-          <span class="value"></span>
-        </td>
-        <td class="small">
-          <span class="value">{{companyKPPLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyKPP}}</span>
-        </td>
-      </tr>
-      <tr>
-        <td class="small">
-          <span class="value">{{companyAccountLabel}}</span>
-        </td>
-        <td class="medium">
-          <span class="value">{{companyAccount}}</span>
-        </td>
-      </tr>
-    </table>
+    <div class="title">{{documentTitle}} № {{actNumber}}</div>
 
-    <div class="title">{{documentTitle}} № {{invoiceNumber}} от {{invoiceDate}}</div>
+    <div class="act-place-date">
+      <div class="act-place">{{actPlace}}</div>
+      <div class="act-date">от {{actDate}}</div>
+    </div>
 
     <table class="parties" aria-label="Информация о сторонах">
       <tr>
-        <td class="parties__label">{{supplierLabel}}</td>
-        <td class="parties__value">{{supplierDetails}}</td>
+        <td class="parties__label">{{contractorLabel}}</td>
+        <td class="parties__value">{{contractorDetails}}</td>
       </tr>
       <tr>
-        <td class="parties__label">{{buyerLabel}}</td>
-        <td class="parties__value">{{recipientDetails}}</td>
+        <td class="parties__label">{{customerLabel}}</td>
+        <td class="parties__value">{{customerDetails}}</td>
       </tr>
       <tr class="{{basisRowHiddenClass}}">
         <td class="parties__label">{{basisLabel}}</td>
@@ -588,7 +466,9 @@
       </tr>
     </table>
 
-    <table class="items" aria-label="Товары и услуги">
+    <div class="intro">{{introText}}</div>
+
+    <table class="items" aria-label="Работы и услуги">
       <thead>
         <tr>
           <th class="col-index">№</th>
@@ -596,7 +476,6 @@
           <th class="col-qty">{{quantityLabel}}</th>
           <th class="col-unit">{{unitLabel}}</th>
           <th class="col-price">{{priceLabel}}</th>
-          <th class="col-vat {{itemsVatColumnHiddenClass}}">{{vatColumnLabel}}</th>
           <th class="col-sum">{{sumLabel}}</th>
         </tr>
       </thead>
@@ -605,12 +484,7 @@
       </tbody>
     </table>
 
-    <table class="totals" aria-label="Итоги документа">
-      <tr class="{{currencyRowHiddenClass}}">
-        <td class="totals__spacer"></td>
-        <td class="totals__label">{{currencyLabel}}</td>
-        <td class="totals__value">{{currencyCode}}</td>
-      </tr>
+    <table class="totals" aria-label="Итоги акта">
       <tr>
         <td class="totals__spacer"></td>
         <td class="totals__label">{{subtotalLabel}}</td>
@@ -623,30 +497,44 @@
       </tr>
       <tr>
         <td class="totals__spacer"></td>
-        <td class="totals__label totals__label--strong">{{totalLabel}}</td>
-        <td class="totals__value totals__value--strong">{{total}}</td>
+        <td class="totals__label totals__strong">{{totalLabel}}</td>
+        <td class="totals__value totals__strong">{{total}}</td>
       </tr>
     </table>
 
-    <div class="currency-note {{currencyRowHiddenClass}}">{{currencySummaryText}}</div>
-
     <div class="summary">{{summaryText}}</div>
+
+    <div class="acceptance-text">{{acceptanceText}}</div>
 
     <div class="comment {{commentHiddenClass}}">{{comment}}</div>
 
-    <table class="signatures" aria-label="Подпись">
+    <table class="signatures" aria-label="Подписи сторон">
       <tr>
-        <td class="signatures__position">{{managerPosition}}</td>
         <td>
-          <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-            <tr>
-              <td class="signatures__line"><span class="signatures__line-inner"></span></td>
-              <td class="signatures__name">{{managerName}}</td>
-            </tr>
-          </table>
-          <div class="sign-images {{signImagesHiddenClass}}">
-            <img class="signature {{signatureHiddenClass}}" src="{{signatureImage}}" alt="Подпись" />
-            <img class="stamp {{stampHiddenClass}}" src="{{stampImage}}" alt="Печать" />
+          <div class="signature-block">
+            <div class="signature-title">{{contractorSignatureTitle}}</div>
+            <span class="signature-line"></span>
+            <div class="signature-caption">подпись</div>
+            <div class="signature-name">{{contractorSignerName}}</div>
+
+            <div class="sign-images {{contractorSignImagesHiddenClass}}">
+              <img class="signature {{contractorSignatureHiddenClass}}" src="{{contractorSignatureImage}}" alt="Подпись исполнителя" />
+              <img class="stamp {{contractorStampHiddenClass}}" src="{{contractorStampImage}}" alt="Печать исполнителя" />
+            </div>
+          </div>
+        </td>
+
+        <td>
+          <div class="signature-block signature-block--right">
+            <div class="signature-title">{{customerSignatureTitle}}</div>
+            <span class="signature-line"></span>
+            <div class="signature-caption">подпись</div>
+            <div class="signature-name">{{customerSignerName}}</div>
+
+            <div class="sign-images {{customerSignImagesHiddenClass}}">
+              <img class="signature {{customerSignatureHiddenClass}}" src="{{customerSignatureImage}}" alt="Подпись заказчика" />
+              <img class="stamp {{customerStampHiddenClass}}" src="{{customerStampImage}}" alt="Печать заказчика" />
+            </div>
           </div>
         </td>
       </tr>

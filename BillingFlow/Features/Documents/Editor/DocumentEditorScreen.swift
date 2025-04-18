@@ -64,7 +64,7 @@ private extension DocumentEditorScreen {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text("\(viewModel.currentStep.rawValue + 1) из \(viewModel.steps.count) · \(viewModel.currentStep.title)")
+                    Text("\(viewModel.currentStep.rawValue + 1) из \(viewModel.steps.count) · \(viewModel.title(for: viewModel.currentStep))")
                         .font(AppFont.Text.caption)
                         .foregroundStyle(.white.opacity(0.72))
                 }
@@ -104,7 +104,7 @@ private extension DocumentEditorScreen {
                         Button {
                             viewModel.goToStep(step)
                         } label: {
-                            Text(step.title)
+                            Text(viewModel.title(for: step))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(step == viewModel.currentStep ? AppColor.Brand.primary : AppColor.Text.primary)
                                 .padding(.horizontal, 12)
@@ -142,20 +142,20 @@ private extension DocumentEditorScreen {
     @ViewBuilder
     var stepContent: some View {
         switch viewModel.currentStep {
-        case .type:
-            typeStep
+        case .start:
+            startStep
         case .seller:
             partyStep(
-                title: "Кто выставляет счет",
-                subtitle: "Выберите продавца из организаций или заполните реквизиты вручную.",
+                title: viewModel.sellerStepTitle,
+                subtitle: viewModel.sellerStepSubtitle,
                 party: viewModel.draft.seller,
                 onSelect: viewModel.selectSeller,
                 onUpdate: viewModel.updateSeller
             )
         case .buyer:
             partyStep(
-                title: "Кому выставляем",
-                subtitle: "Покупатель подтянется из ранее добавленных и использованных организаций.",
+                title: viewModel.buyerStepTitle,
+                subtitle: viewModel.buyerStepSubtitle,
                 party: viewModel.draft.buyer,
                 onSelect: viewModel.selectBuyer,
                 onUpdate: viewModel.updateBuyer
@@ -171,42 +171,37 @@ private extension DocumentEditorScreen {
         }
     }
 
-    var typeStep: some View {
+    var startStep: some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(
-                title: "Начнем со счета",
-                subtitle: "Пока wizard реализован для счета. Остальные типы позже получат свои сценарии."
+                title: viewModel.startStepTitle,
+                subtitle: viewModel.startStepSubtitle
             )
 
             MaterialCard {
-                VStack(spacing: AppSpacing.md) {
-                    documentTypeRow(
-                        title: "Счет на оплату",
-                        subtitle: "Быстрое создание с продавцом, покупателем, позициями и НДС",
-                        icon: "doc.text.fill",
-                        isSelected: true,
-                        isEnabled: true
-                    )
+                HStack(spacing: AppSpacing.md) {
+                    Image(systemName: viewModel.documentIconName)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(AppColor.Brand.primary)
+                        .frame(width: 42, height: 42)
+                        .background(AppColor.Brand.primary.opacity(0.12), in: Circle())
 
-                    documentTypeRow(
-                        title: "Акт выполненных работ",
-                        subtitle: "Будет отдельный короткий сценарий",
-                        icon: "checklist.checked",
-                        isSelected: false,
-                        isEnabled: false
-                    )
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(viewModel.freshDocumentTitle)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.primary)
 
-                    documentTypeRow(
-                        title: "Счет-фактура",
-                        subtitle: "Будет отдельный сценарий с налоговыми полями",
-                        icon: "building.columns.fill",
-                        isSelected: false,
-                        isEnabled: false
-                    )
+                        Text(viewModel.freshDocumentSubtitle)
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
                 }
             }
 
-            if viewModel.recentInvoiceTemplates.isEmpty == false {
+            if viewModel.recentDocumentTemplates.isEmpty == false {
                 templatesSection
             }
         }
@@ -214,14 +209,14 @@ private extension DocumentEditorScreen {
 
     var templatesSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Создать на основе прошлого")
+            Text(viewModel.templatesTitle)
                 .font(AppFont.Text.headline)
                 .foregroundStyle(.white)
                 .padding(.horizontal, AppSpacing.md)
 
             MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
                 VStack(spacing: 0) {
-                    ForEach(viewModel.recentInvoiceTemplates.prefix(3)) { document in
+                    ForEach(viewModel.recentDocumentTemplates.prefix(3)) { document in
                         Button {
                             viewModel.useTemplate(document)
                         } label: {
@@ -233,11 +228,11 @@ private extension DocumentEditorScreen {
                                     .background(AppColor.Brand.primary.opacity(0.12), in: Circle())
 
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("Счет №\(document.number)")
+                                    Text("\(document.type.displayName) №\(document.number)")
                                         .font(.system(size: 15, weight: .semibold))
                                         .foregroundStyle(AppColor.Text.primary)
 
-                                    Text(document.buyer.displayName.isEmpty ? "Покупатель не указан" : document.buyer.displayName)
+                                    Text(document.buyer.displayName.isEmpty ? "Контрагент не указан" : document.buyer.displayName)
                                         .font(AppFont.Text.caption)
                                         .foregroundStyle(AppColor.Text.secondary)
                                 }
@@ -255,39 +250,6 @@ private extension DocumentEditorScreen {
                 }
             }
         }
-    }
-
-    func documentTypeRow(
-        title: String,
-        subtitle: String,
-        icon: String,
-        isSelected: Bool,
-        isEnabled: Bool
-    ) -> some View {
-        HStack(spacing: AppSpacing.md) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(isEnabled ? AppColor.Brand.primary : AppColor.Text.secondary)
-                .frame(width: 42, height: 42)
-                .background((isEnabled ? AppColor.Brand.primary : Color.gray).opacity(0.12), in: Circle())
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(isEnabled ? AppColor.Text.primary : AppColor.Text.secondary)
-
-                Text(subtitle)
-                    .font(AppFont.Text.caption)
-                    .foregroundStyle(AppColor.Text.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer()
-
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "lock.fill")
-                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
-        }
-        .opacity(isEnabled ? 1 : 0.58)
     }
 
     func partyStep(
@@ -396,18 +358,18 @@ private extension DocumentEditorScreen {
     var detailsStep: some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(
-                title: "Реквизиты счета",
-                subtitle: "Номер можно поправить вручную, дату и НДС применим ко всем позициям."
+                title: viewModel.detailsStepTitle,
+                subtitle: viewModel.detailsStepSubtitle
             )
 
             MaterialCard {
                 VStack(spacing: AppSpacing.md) {
-                    partyTextField("Номер счета", value: viewModel.draft.number) {
+                    partyTextField(viewModel.numberFieldTitle, value: viewModel.draft.number) {
                         viewModel.updateNumber($0)
                     }
 
                     DatePicker(
-                        "Дата счета",
+                        viewModel.dateFieldTitle,
                         selection: Binding(
                             get: { viewModel.draft.date },
                             set: viewModel.updateDate
@@ -421,7 +383,9 @@ private extension DocumentEditorScreen {
                         viewModel.updateCurrencyCode($0)
                     }
 
-                    vatSelector
+                    if viewModel.showsVATSelector {
+                        vatSelector
+                    }
                 }
             }
         }
@@ -463,8 +427,8 @@ private extension DocumentEditorScreen {
     var itemsStep: some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(
-                title: "Позиции счета",
-                subtitle: "Строки выглядят как в счете: услуга, количество, цена и сумма."
+                title: viewModel.itemsStepTitle,
+                subtitle: viewModel.itemsStepSubtitle
             )
 
             VStack(spacing: AppSpacing.sm) {
@@ -500,7 +464,7 @@ private extension DocumentEditorScreen {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(AppColor.Text.primary)
 
-                        Text(displayedItem.title.isEmpty ? "Услуга или товар" : displayedItem.title)
+                        Text(displayedItem.title.isEmpty ? viewModel.itemTitlePlaceholder : displayedItem.title)
                             .font(AppFont.Text.caption)
                             .foregroundStyle(AppColor.Text.secondary)
                             .lineLimit(1)
@@ -525,11 +489,11 @@ private extension DocumentEditorScreen {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Название услуги или товара")
+                    Text(viewModel.itemTitleLabel)
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
 
-                    TextField("Наименование", text: Binding(
+                    TextField(viewModel.itemTitlePlaceholder, text: Binding(
                         get: { currentItem(for: item).title },
                         set: { viewModel.updateItemTitle(id: item.id, title: $0) }
                     ))
@@ -566,10 +530,12 @@ private extension DocumentEditorScreen {
                     }
                 }
 
-                HStack {
-                    Text(displayedItem.vatRate.map { "НДС \(decimalText($0))%" } ?? "Без НДС")
-                        .font(AppFont.Text.caption)
-                        .foregroundStyle(AppColor.Text.secondary)
+                if viewModel.showsVATSelector {
+                    HStack {
+                        Text(displayedItem.vatRate.map { "НДС \(decimalText($0))%" } ?? "Без НДС")
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                    }
                 }
             }
         }
@@ -617,7 +583,9 @@ private extension DocumentEditorScreen {
         MaterialCard {
             VStack(spacing: AppSpacing.sm) {
                 amountLine(title: "Подытог", amount: viewModel.totals.subtotal)
-                amountLine(title: "НДС", amount: viewModel.totals.vatAmount)
+                if viewModel.showsVATSelector {
+                    amountLine(title: "НДС", amount: viewModel.totals.vatAmount)
+                }
                 Divider()
                 amountLine(title: "Итого", amount: viewModel.totals.total, isTotal: true)
             }
@@ -661,16 +629,16 @@ private extension DocumentEditorScreen {
     var reviewStep: some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(
-                title: "Проверьте счет",
-                subtitle: "Все ключевые параметры собраны в короткий экран перед сохранением."
+                title: viewModel.reviewStepTitle,
+                subtitle: viewModel.reviewStepSubtitle
             )
 
             MaterialCard {
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     amountLine(title: "Итого", amount: viewModel.totals.total, isTotal: true)
                     reviewLine("Номер", viewModel.draft.number)
-                    reviewLine("Продавец", viewModel.draft.seller.displayName)
-                    reviewLine("Покупатель", viewModel.draft.buyer.displayName)
+                    reviewLine(viewModel.sellerReviewTitle, viewModel.draft.seller.displayName)
+                    reviewLine(viewModel.buyerReviewTitle, viewModel.draft.buyer.displayName)
                     reviewLine("Позиций", "\(viewModel.draft.items.count)")
                 }
             }
@@ -725,7 +693,7 @@ private extension DocumentEditorScreen {
             Spacer()
 
             HStack(spacing: AppSpacing.sm) {
-                if viewModel.currentStep != .type {
+                if viewModel.currentStep != .start {
                     Button {
                         viewModel.goBack()
                     } label: {
