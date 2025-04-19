@@ -103,7 +103,7 @@ private extension HomeScreen {
 
     var notificationButton: some View {
         Button {
-
+            viewModel.didTapNotifications()
         } label: {
             Image(systemName: "bell.fill")
                 .frame(width: 40, height: 40)

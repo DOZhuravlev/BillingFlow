@@ -82,6 +82,10 @@ extension HomeViewModel {
 // MARK: - User Actions
 
 extension HomeViewModel {
+    func didTapNotifications() {
+        coordinator?.showNotifications()
+    }
+
     func didTapCreateDocument(type: DocumentType) {
         coordinator?.showCreateDocument(type: type)
     }

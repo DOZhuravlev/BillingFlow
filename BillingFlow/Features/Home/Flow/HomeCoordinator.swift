@@ -44,7 +44,18 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
     }
 
     func showNotifications() {
+        let viewModel = NotificationsViewModel { [weak self] in
+            self?.pop()
+        }
+        let view = NotificationsScreen(viewModel: viewModel)
+        let controller = HostingController(
+            rootView: view,
+            navigationTitle: "Уведомления",
+            titleDisplayMode: .never
+        )
 
+        navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showProfile() {
@@ -159,6 +170,7 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
 
     func pop() {
         navigationController.popViewController(animated: true)
+        updateTabBarVisibility()
     }
 
     func finishDocumentFlowAfterShare() {
