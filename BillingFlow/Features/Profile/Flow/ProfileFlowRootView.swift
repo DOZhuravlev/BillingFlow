@@ -25,6 +25,7 @@ struct ProfileFlowRootView: UIViewControllerRepresentable {
         )
 
         context.coordinator.profileCoordinator = coordinator
+        navigationController.delegate = coordinator
         coordinator.start()
 
         return navigationController

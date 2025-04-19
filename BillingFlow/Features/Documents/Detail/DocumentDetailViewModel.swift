@@ -71,6 +71,10 @@ extension DocumentDetailViewModel {
 // MARK: - User Actions
 
 extension DocumentDetailViewModel {
+    func didTapBack() {
+        coordinator?.pop()
+    }
+
     func didTapEdit() {
         coordinator?.showEditDocument(document: document)
     }

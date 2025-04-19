@@ -5,6 +5,7 @@ struct DocumentPreviewScreen: View {
     // MARK: - Dependencies
 
     @ObservedObject var viewModel: DocumentPreviewViewModel
+    @State private var isPreviewLoading = true
 
     // MARK: - Body
 
@@ -47,15 +48,32 @@ private extension DocumentPreviewScreen {
 private extension DocumentPreviewScreen {
 
     var headerSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(viewModel.documentTitle)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
+        HStack(alignment: .top, spacing: AppSpacing.md) {
+            Button(action: viewModel.didTapBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(.white.opacity(0.16), in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(0.24), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
 
-            Text(viewModel.documentSubtitle)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(.white.opacity(0.72))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(viewModel.documentTitle)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                Text(viewModel.documentSubtitle)
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)
@@ -104,7 +122,10 @@ private extension DocumentPreviewScreen {
     }
 
     var previewCanvas: some View {
-        DocumentPreviewWebView(html: viewModel.renderedHTML)
+        DocumentPreviewWebView(
+            html: viewModel.renderedHTML,
+            isLoading: $isPreviewLoading
+        )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.white.opacity(0.84))
             .overlay(alignment: .top) {
@@ -112,6 +133,28 @@ private extension DocumentPreviewScreen {
                     .fill(.black.opacity(0.05))
                     .frame(height: 1)
             }
+            .overlay {
+                if isPreviewLoading {
+                    previewLoadingOverlay
+                }
+            }
+    }
+
+    var previewLoadingOverlay: some View {
+        ZStack {
+            Color.white.opacity(0.92)
+
+            VStack(spacing: AppSpacing.sm) {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(AppColor.Brand.primary)
+                    .frame(width: 180)
+
+                Text("Готовим предпросмотр")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+            }
+        }
     }
 }
 

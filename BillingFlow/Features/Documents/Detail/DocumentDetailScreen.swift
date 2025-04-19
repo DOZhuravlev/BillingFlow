@@ -45,21 +45,38 @@ private extension DocumentDetailScreen {
 private extension DocumentDetailScreen {
 
     var heroSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.documentTitle)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
+        HStack(alignment: .top, spacing: AppSpacing.md) {
+            Button(action: viewModel.didTapBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(.white.opacity(0.16), in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(0.24), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
 
-            Text(viewModel.documentSubtitle)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(.white.opacity(0.72))
+            VStack(alignment: .leading, spacing: 8) {
+                Text(viewModel.documentTitle)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
 
-            Text(viewModel.totalText)
-                .font(.system(size: 32, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+                Text(viewModel.documentSubtitle)
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(.white.opacity(0.72))
+
+                Text(viewModel.totalText)
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)

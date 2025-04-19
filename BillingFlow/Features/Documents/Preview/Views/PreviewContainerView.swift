@@ -18,6 +18,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
     private var currentHTML: String?
     private var lastBoundsSize: CGSize = .zero
     private var didApplyInitialScale = false
+    var onLoadingStateChange: ((Bool) -> Void)?
 
     // MARK: - Initialization
 
@@ -65,6 +66,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
 
         currentHTML = html
         didApplyInitialScale = false
+        onLoadingStateChange?(true)
         scrollView.setZoomScale(1, animated: false)
         scrollView.contentOffset = .zero
 
@@ -95,6 +97,7 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
 
         webView.isOpaque = false
         webView.backgroundColor = .clear
+        webView.navigationDelegate = self
         webView.scrollView.isScrollEnabled = false
 
         webView.scrollView.isScrollEnabled = false
@@ -245,5 +248,20 @@ final class PreviewContainerView: UIView, UIScrollViewDelegate {
         )
 
         scrollView.zoom(to: rect, animated: true)
+    }
+}
+
+extension PreviewContainerView: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        onLoadingStateChange?(false)
+        setNeedsLayout()
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        onLoadingStateChange?(false)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        onLoadingStateChange?(false)
     }
 }

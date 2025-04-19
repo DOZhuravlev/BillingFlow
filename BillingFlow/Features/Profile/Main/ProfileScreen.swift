@@ -2,6 +2,24 @@ import SwiftUI
 
 struct ProfileScreen: View {
 
+    // MARK: - Actions
+
+    let onOrganizationProfile: () -> Void
+    let onSignatureAndStamp: () -> Void
+    let onNotifications: () -> Void
+
+    // MARK: - Initialization
+
+    init(
+        onOrganizationProfile: @escaping () -> Void = { },
+        onSignatureAndStamp: @escaping () -> Void = { },
+        onNotifications: @escaping () -> Void = { }
+    ) {
+        self.onOrganizationProfile = onOrganizationProfile
+        self.onSignatureAndStamp = onSignatureAndStamp
+        self.onNotifications = onNotifications
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -11,9 +29,8 @@ struct ProfileScreen: View {
             ScrollView {
                 VStack(spacing: AppSpacing.lg) {
                     headerSection
-                    organizationSection
-                    documentsSection
-                    appSection
+                    settingsListSection
+                    versionSection
                 }
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.top, AppSpacing.md)
@@ -39,7 +56,7 @@ private extension ProfileScreen {
 private extension ProfileScreen {
 
     var headerSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
+        Button(action: onOrganizationProfile) {
             HStack(alignment: .center, spacing: AppSpacing.md) {
                 organizationAvatar
 
@@ -55,8 +72,13 @@ private extension ProfileScreen {
                 }
 
                 Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.72))
             }
         }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -80,64 +102,13 @@ private extension ProfileScreen {
 
 private extension ProfileScreen {
 
-    var organizationSection: some View {
-        settingsSection(title: "Организация") {
-            settingsRow(
-                title: "Профиль организации",
-                subtitle: "Название, ИНН, КПП и контакты",
-                iconName: "building.2.fill"
-            )
-
-            divider
-
-            settingsRow(
-                title: "Банковские реквизиты",
-                subtitle: "Счёт, БИК, банк и корреспондентский счёт",
-                iconName: "building.columns.fill"
-            )
-
-            divider
-
-            settingsRow(
-                title: "Адрес и представители",
-                subtitle: "Юридический адрес и руководитель",
-                iconName: "person.text.rectangle.fill"
-            )
-        }
-    }
-
-    var documentsSection: some View {
-        settingsSection(title: "Документы") {
+    var settingsListSection: some View {
+        settingsSection(title: "Настройки") {
             settingsRow(
                 title: "Подпись и печать",
                 subtitle: "Загрузите подпись, печать и настройте отображение",
-                iconName: "signature"
-            )
-
-            divider
-
-            settingsRow(
-                title: "Шаблоны документов",
-                subtitle: "Счета, акты и счета-фактуры",
-                iconName: "doc.on.doc.fill"
-            )
-
-            divider
-
-            settingsRow(
-                title: "Нумерация",
-                subtitle: "Префиксы и следующий номер документа",
-                iconName: "number.square.fill"
-            )
-        }
-    }
-
-    var appSection: some View {
-        settingsSection(title: "Приложение") {
-            settingsRow(
-                title: "Экспорт и хранение",
-                subtitle: "PDF, папка документов и резервные копии",
-                iconName: "square.and.arrow.up.fill"
+                iconName: "signature",
+                action: onSignatureAndStamp
             )
 
             divider
@@ -145,17 +116,20 @@ private extension ProfileScreen {
             settingsRow(
                 title: "Уведомления",
                 subtitle: "Напоминания об оплате и сроках",
-                iconName: "bell.fill"
-            )
-
-            divider
-
-            settingsRow(
-                title: "Поддержка",
-                subtitle: "Помощь, обратная связь и версия приложения",
-                iconName: "questionmark.circle.fill"
+                iconName: "bell.fill",
+                action: onNotifications
             )
         }
+    }
+
+    var versionSection: some View {
+        VStack(spacing: 4) {
+            Text("Версия \(appVersion) (\(buildNumber))")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(.white.opacity(0.62))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, AppSpacing.sm)
     }
 }
 
@@ -184,11 +158,10 @@ private extension ProfileScreen {
     func settingsRow(
         title: String,
         subtitle: String,
-        iconName: String
+        iconName: String,
+        action: @escaping () -> Void
     ) -> some View {
-        Button {
-
-        } label: {
+        Button(action: action) {
             HStack(spacing: AppSpacing.md) {
                 Image(systemName: iconName)
                     .font(.system(size: 17, weight: .semibold))
@@ -229,6 +202,14 @@ private extension ProfileScreen {
             .fill(.white.opacity(0.34))
             .frame(height: 1)
             .padding(.leading, 68)
+    }
+
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 }
 

@@ -106,6 +106,10 @@ extension DocumentPreviewViewModel {
 // MARK: - User Actions
 
 extension DocumentPreviewViewModel {
+    func didTapBack() {
+        coordinator?.pop()
+    }
+
     func didTapSave() async {
         guard let saveAction, isSaving == false, isSending == false else { return }
 

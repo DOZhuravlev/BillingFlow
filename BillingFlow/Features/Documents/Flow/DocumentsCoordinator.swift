@@ -228,6 +228,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
 
     func pop() {
         navigationController.popViewController(animated: true)
+        updateTabBarVisibility()
     }
 }
 

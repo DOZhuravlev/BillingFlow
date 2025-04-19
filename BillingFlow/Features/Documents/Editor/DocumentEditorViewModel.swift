@@ -237,6 +237,14 @@ extension DocumentEditorViewModel {
         }
     }
 
+    var isFreshDocumentSelected: Bool {
+        draft.sourceDocumentID == nil
+    }
+
+    func isTemplateSelected(_ document: BusinessDocument) -> Bool {
+        draft.sourceDocumentID == document.id
+    }
+
     var sellerStepTitle: String {
         switch draft.type {
         case .invoice, .deliveryNote:
@@ -448,6 +456,7 @@ extension DocumentEditorViewModel {
                 storedOrganizations: storedOrganizations,
                 documents: documents
             )
+            applyDefaultSellerIfNeeded(from: storedOrganizations)
             updateRecentDocumentTemplates()
         } catch {
             errorMessage = error.localizedDescription
@@ -499,11 +508,20 @@ extension DocumentEditorViewModel {
 // MARK: - Template Actions
 
 extension DocumentEditorViewModel {
+    func useFreshDocument() {
+        let type = draft.type
+        let seller = draft.seller
+        draft = documentFactory.makeEmptyDraft(type: type)
+        draft.seller = seller
+        Self.normalizeItems(in: &draft)
+        updateRecentDocumentTemplates()
+        autosaveDraft()
+    }
+
     func useTemplate(_ document: BusinessDocument) {
         draft = documentFactory.makeDuplicateDraft(from: document)
         draft.updatedAt = Date()
         Self.normalizeItems(in: &draft)
-        currentStep = .seller
         updateRecentDocumentTemplates()
         autosaveDraft()
     }
@@ -743,6 +761,22 @@ private extension DocumentEditorViewModel {
         recentDocumentTemplates = loadedDocuments
             .filter { $0.type == draft.type }
             .sorted { $0.date > $1.date }
+    }
+
+    func applyDefaultSellerIfNeeded(from organizations: [Organization]) {
+        guard draft.seller.isEmpty else { return }
+
+        let defaultSeller = organizations.first { organization in
+            organization.party.isEmpty == false && organization.role == .seller
+        } ?? organizations.first { organization in
+            organization.party.isEmpty == false && organization.role == .mixed
+        }
+
+        guard let defaultSeller else { return }
+
+        draft.seller = defaultSeller.party
+        draft.updatedAt = Date()
+        autosaveDraft()
     }
 
     static func defaultUnit(for type: DocumentType) -> String {

@@ -179,26 +179,16 @@ private extension DocumentEditorScreen {
             )
 
             MaterialCard {
-                HStack(spacing: AppSpacing.md) {
-                    Image(systemName: viewModel.documentIconName)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(AppColor.Brand.primary)
-                        .frame(width: 42, height: 42)
-                        .background(AppColor.Brand.primary.opacity(0.12), in: Circle())
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(viewModel.freshDocumentTitle)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppColor.Text.primary)
-
-                        Text(viewModel.freshDocumentSubtitle)
-                            .font(AppFont.Text.caption)
-                            .foregroundStyle(AppColor.Text.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer()
+                Button {
+                    viewModel.useFreshDocument()
+                } label: {
+                    startChoiceRow(
+                        title: viewModel.freshDocumentTitle,
+                        subtitle: viewModel.freshDocumentSubtitle,
+                        isSelected: viewModel.isFreshDocumentSelected
+                    )
                 }
+                .buttonStyle(.plain)
             }
 
             if viewModel.recentDocumentTemplates.isEmpty == false {
@@ -220,35 +210,57 @@ private extension DocumentEditorScreen {
                         Button {
                             viewModel.useTemplate(document)
                         } label: {
-                            HStack(spacing: AppSpacing.md) {
-                                Image(systemName: "doc.on.doc.fill")
-                                    .font(.system(size: 17, weight: .bold))
-                                    .foregroundStyle(AppColor.Brand.primary)
-                                    .frame(width: 38, height: 38)
-                                    .background(AppColor.Brand.primary.opacity(0.12), in: Circle())
-
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text("\(document.type.displayName) №\(document.number)")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(AppColor.Text.primary)
-
-                                    Text(document.buyer.displayName.isEmpty ? "Контрагент не указан" : document.buyer.displayName)
-                                        .font(AppFont.Text.caption)
-                                        .foregroundStyle(AppColor.Text.secondary)
-                                }
-
-                                Spacer()
-
-                                Text(CurrencyFormatter.amountText(document.totals.total, currencyCode: document.currencyCode))
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(AppColor.Text.primary)
-                            }
-                            .padding(AppSpacing.md)
+                            startChoiceRow(
+                                title: "\(document.type.displayName) №\(document.number)",
+                                subtitle: document.buyer.displayName.isEmpty ? "Контрагент не указан" : document.buyer.displayName,
+                                trailingText: CurrencyFormatter.amountText(document.totals.total, currencyCode: document.currencyCode),
+                                isSelected: viewModel.isTemplateSelected(document)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
+        }
+    }
+
+    func startChoiceRow(
+        title: String,
+        subtitle: String,
+        trailingText: String? = nil,
+        isSelected: Bool
+    ) -> some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+
+                Text(subtitle)
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            if let trailingText {
+                Text(trailingText)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+        }
+        .padding(AppSpacing.md)
+        .background {
+            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                .fill(isSelected ? AppColor.Brand.primary.opacity(0.08) : Color.clear)
         }
     }
 
