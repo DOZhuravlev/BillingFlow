@@ -16,11 +16,13 @@ final class DocumentsListViewModel: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var filter = DocumentsFilter()
+    @Published private(set) var documentPendingDeletion: BusinessDocument?
 
     // MARK: - Dependencies
 
     private weak var coordinator: DocumentsCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
+    private let documentEventsStore: DocumentEventsStore?
     private let listGrouper: DocumentsListGrouper
     private let documentItemMapper: DocumentsListItemMapper
     private var cancellables = Set<AnyCancellable>()
@@ -36,6 +38,7 @@ final class DocumentsListViewModel: ObservableObject {
     ) {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
+        self.documentEventsStore = documentEventsStore
         self.listGrouper = listGrouper
         self.documentItemMapper = documentItemMapper
         bindDocumentEvents(documentEventsStore)
@@ -136,6 +139,28 @@ extension DocumentsListViewModel {
     func didTapDocument(document: BusinessDocument) {
         coordinator?.showDetail(document: document)
     }
+
+    func requestDeleteDocument(_ document: BusinessDocument) {
+        documentPendingDeletion = document
+    }
+
+    func cancelDeleteDocument() {
+        documentPendingDeletion = nil
+    }
+
+    func confirmDeleteDocument() async {
+        guard let document = documentPendingDeletion else { return }
+
+        documentPendingDeletion = nil
+
+        do {
+            try await documentsRepository.deleteDocument(id: document.id)
+            removeDocumentFromLoadedState(id: document.id)
+            documentEventsStore?.sendDocumentsDidChange()
+        } catch {
+            state = .error(error.localizedDescription)
+        }
+    }
 }
 
 // MARK: - Filter Actions
@@ -203,5 +228,10 @@ private extension DocumentsListViewModel {
         loadedDocuments
             .filter { filter.matches($0) }
             .sorted { $0.date > $1.date }
+    }
+
+    func removeDocumentFromLoadedState(id: UUID) {
+        let updatedDocuments = loadedDocuments.filter { $0.id != id }
+        state = updatedDocuments.isEmpty ? .empty : .loaded(updatedDocuments)
     }
 }

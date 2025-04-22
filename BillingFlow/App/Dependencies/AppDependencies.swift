@@ -4,6 +4,7 @@ struct AppDependencies {
     let filesDocumentsRepository: FileDocumentsRepository
     let documentsRepository: DocumentsRepositoryProtocol
     let organizationsRepository: OrganizationsRepositoryProtocol
+    let organizationSearchService: OrganizationSearchServiceProtocol
     let tabBarVisibilityStore: TabBarVisibilityStore
     let documentEventsStore: DocumentEventsStore
     let documentFactory: DocumentFactory
@@ -15,6 +16,7 @@ struct AppDependencies {
         filesDocumentsRepository: FileDocumentsRepository,
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
+        organizationSearchService: OrganizationSearchServiceProtocol,
         tabBarVisibilityStore: TabBarVisibilityStore,
         documentEventsStore: DocumentEventsStore,
         documentFactory: DocumentFactory,
@@ -25,6 +27,7 @@ struct AppDependencies {
         self.filesDocumentsRepository = filesDocumentsRepository
         self.documentsRepository = documentsRepository
         self.organizationsRepository = organizationsRepository
+        self.organizationSearchService = organizationSearchService
         self.tabBarVisibilityStore = tabBarVisibilityStore
         self.documentEventsStore = documentEventsStore
         self.documentFactory = documentFactory

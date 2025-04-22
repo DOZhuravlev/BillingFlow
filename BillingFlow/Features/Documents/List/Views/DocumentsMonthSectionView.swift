@@ -3,6 +3,7 @@ import SwiftUI
 struct DocumentsMonthSectionView: View {
     let section: DocumentsListSection
     let onDocumentTap: (BusinessDocument) -> Void
+    let onDocumentDelete: (BusinessDocument) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -16,6 +17,13 @@ struct DocumentsMonthSectionView: View {
                         documentCard(for: row.item)
                     }
                     .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            onDocumentDelete(row.document)
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }

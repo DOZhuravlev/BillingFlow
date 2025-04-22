@@ -35,6 +35,23 @@ struct DocumentsScreen: View {
         .sheet(isPresented: $isCounterpartyPickerPresented) {
             counterpartyPickerSheet
         }
+        .alert(
+            "Удалить документ?",
+            isPresented: deleteConfirmationBinding,
+            presenting: viewModel.documentPendingDeletion
+        ) { _ in
+            Button("Отмена", role: .cancel) {
+                viewModel.cancelDeleteDocument()
+            }
+
+            Button("Удалить", role: .destructive) {
+                Task {
+                    await viewModel.confirmDeleteDocument()
+                }
+            }
+        } message: { document in
+            Text("\(document.type.displayName) №\(document.number) будет удалён из списка.")
+        }
         .task {
             await viewModel.loadDocumentsIfNeeded()
         }
@@ -138,6 +155,9 @@ private extension DocumentsScreen {
                     section: section,
                     onDocumentTap: { document in
                         viewModel.didTapDocument(document: document)
+                    },
+                    onDocumentDelete: { document in
+                        viewModel.requestDeleteDocument(document)
                     }
                 )
             }
@@ -183,6 +203,19 @@ private extension DocumentsScreen {
             },
             set: { filter in
                 viewModel.applyFilter(filter)
+            }
+        )
+    }
+
+    var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: {
+                viewModel.documentPendingDeletion != nil
+            },
+            set: { isPresented in
+                if isPresented == false {
+                    viewModel.cancelDeleteDocument()
+                }
             }
         )
     }
