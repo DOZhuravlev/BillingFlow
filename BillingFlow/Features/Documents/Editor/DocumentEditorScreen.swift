@@ -148,6 +148,7 @@ private extension DocumentEditorScreen {
             partyStep(
                 title: viewModel.sellerStepTitle,
                 subtitle: viewModel.sellerStepSubtitle,
+                searchTarget: .seller,
                 party: viewModel.draft.seller,
                 onSelect: viewModel.selectSeller,
                 onUpdate: viewModel.updateSeller
@@ -156,6 +157,7 @@ private extension DocumentEditorScreen {
             partyStep(
                 title: viewModel.buyerStepTitle,
                 subtitle: viewModel.buyerStepSubtitle,
+                searchTarget: .buyer,
                 party: viewModel.draft.buyer,
                 onSelect: viewModel.selectBuyer,
                 onUpdate: viewModel.updateBuyer
@@ -267,6 +269,7 @@ private extension DocumentEditorScreen {
     func partyStep(
         title: String,
         subtitle: String,
+        searchTarget: DocumentEditorViewModel.PartySearchTarget,
         party: DocumentParty,
         onSelect: @escaping (DocumentParty) -> Void,
         onUpdate: @escaping (DocumentParty) -> Void
@@ -275,6 +278,8 @@ private extension DocumentEditorScreen {
             sectionHeader(title: title, subtitle: subtitle)
 
             organizationMenu(onSelect: onSelect)
+
+            organizationSearchCard(target: searchTarget)
 
             MaterialCard {
                 VStack(spacing: AppSpacing.md) {
@@ -316,6 +321,9 @@ private extension DocumentEditorScreen {
                 }
             }
         }
+        .onAppear {
+            viewModel.activateOrganizationSearch(target: searchTarget)
+        }
     }
 
     func organizationMenu(onSelect: @escaping (DocumentParty) -> Void) -> some View {
@@ -342,6 +350,134 @@ private extension DocumentEditorScreen {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.organizationOptions.isEmpty)
+    }
+
+    func organizationSearchCard(target: DocumentEditorViewModel.PartySearchTarget) -> some View {
+        MaterialCard {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Поиск по ИНН или названию")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+
+                    HStack(spacing: AppSpacing.sm) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.secondary)
+
+                        TextField("7707083893 или Сбербанк", text: Binding(
+                            get: { viewModel.organizationSearchQuery },
+                            set: viewModel.updateOrganizationSearchQuery
+                        ))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.default)
+
+                        if viewModel.isSearchingOrganizations {
+                            ProgressView()
+                                .tint(AppColor.Brand.primary)
+                        } else if viewModel.organizationSearchQuery.isEmpty == false {
+                            Button {
+                                viewModel.resetOrganizationSearch()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(AppColor.Text.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .frame(height: 46)
+                    .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                }
+
+                organizationSearchState(target: target)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func organizationSearchState(target: DocumentEditorViewModel.PartySearchTarget) -> some View {
+        if let message = viewModel.organizationSearchErrorMessage {
+            Text(message)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Status.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else if viewModel.organizationSearchResults.isEmpty == false {
+            VStack(spacing: 0) {
+                ForEach(viewModel.organizationSearchResults) { suggestion in
+                    Button {
+                        viewModel.selectOrganizationSuggestion(suggestion, target: target)
+                    } label: {
+                        organizationSuggestionRow(suggestion)
+                    }
+                    .buttonStyle(.plain)
+
+                    if suggestion.id != viewModel.organizationSearchResults.last?.id {
+                        Rectangle()
+                            .fill(Color.black.opacity(0.07))
+                            .frame(height: 1)
+                            .padding(.leading, AppSpacing.md)
+                    }
+                }
+            }
+            .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        } else if viewModel.organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 &&
+                    viewModel.organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+            Text("Введите минимум 3 символа.")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+        }
+    }
+
+    func organizationSuggestionRow(_ suggestion: OrganizationSuggestion) -> some View {
+        HStack(alignment: .top, spacing: AppSpacing.sm) {
+            Image(systemName: "building.2")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppColor.Brand.primary)
+                .frame(width: 30, height: 30)
+                .background(AppColor.Brand.primary.opacity(0.10), in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(suggestion.shortName.isEmpty ? suggestion.name : suggestion.shortName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(2)
+
+                Text(organizationSuggestionSubtitle(suggestion))
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .lineLimit(2)
+
+                if suggestion.managerName.isEmpty == false {
+                    Text(suggestion.managerName)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: AppSpacing.sm)
+
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(AppColor.Brand.primary)
+        }
+        .padding(AppSpacing.md)
+    }
+
+    func organizationSuggestionSubtitle(_ suggestion: OrganizationSuggestion) -> String {
+        var parts = ["ИНН \(suggestion.inn)"]
+        if suggestion.kpp.isEmpty == false {
+            parts.append("КПП \(suggestion.kpp)")
+        }
+        if suggestion.address.isEmpty == false {
+            parts.append(suggestion.address)
+        }
+        return parts.joined(separator: " · ")
     }
 
     func partyTextField(

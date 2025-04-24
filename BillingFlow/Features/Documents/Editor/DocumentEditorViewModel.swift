@@ -10,6 +10,11 @@ final class DocumentEditorViewModel: ObservableObject {
         case edit(BusinessDocument)
     }
 
+    enum PartySearchTarget {
+        case seller
+        case buyer
+    }
+
     enum Step: Int, CaseIterable, Identifiable {
         case start
         case seller
@@ -61,6 +66,10 @@ final class DocumentEditorViewModel: ObservableObject {
     @Published var draft: DocumentDraft
     @Published var currentStep: Step = .start
     @Published private(set) var organizationOptions: [OrganizationOption] = []
+    @Published var organizationSearchQuery = ""
+    @Published private(set) var organizationSearchResults: [OrganizationSuggestion] = []
+    @Published private(set) var isSearchingOrganizations = false
+    @Published private(set) var organizationSearchErrorMessage: String?
     @Published private(set) var recentDocumentTemplates: [BusinessDocument] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
@@ -73,10 +82,13 @@ final class DocumentEditorViewModel: ObservableObject {
     private weak var coordinator: DocumentsCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
     private let organizationsRepository: OrganizationsRepositoryProtocol
+    private let organizationSearchService: OrganizationSearchServiceProtocol
     private let documentEventsStore: DocumentEventsStore
     private let documentFactory: DocumentFactory
     private let documentValidator: DocumentValidator
     private var loadedDocuments: [BusinessDocument] = []
+    private var organizationSearchTask: Task<Void, Never>?
+    private var activeOrganizationSearchTarget: PartySearchTarget?
 
     // MARK: - Initialization
 
@@ -85,6 +97,7 @@ final class DocumentEditorViewModel: ObservableObject {
         router: DocumentsCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
+        organizationSearchService: OrganizationSearchServiceProtocol,
         documentEventsStore: DocumentEventsStore,
         documentFactory: DocumentFactory,
         documentValidator: DocumentValidator
@@ -93,6 +106,7 @@ final class DocumentEditorViewModel: ObservableObject {
         self.coordinator = router
         self.documentsRepository = documentsRepository
         self.organizationsRepository = organizationsRepository
+        self.organizationSearchService = organizationSearchService
         self.documentEventsStore = documentEventsStore
         self.documentFactory = documentFactory
         self.documentValidator = documentValidator
@@ -530,6 +544,55 @@ extension DocumentEditorViewModel {
 // MARK: - Party Actions
 
 extension DocumentEditorViewModel {
+    func activateOrganizationSearch(target: PartySearchTarget) {
+        guard activeOrganizationSearchTarget != target else { return }
+        activeOrganizationSearchTarget = target
+        resetOrganizationSearch()
+    }
+
+    func updateOrganizationSearchQuery(_ query: String) {
+        organizationSearchQuery = query
+        organizationSearchErrorMessage = nil
+        organizationSearchTask?.cancel()
+
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedQuery.count >= 3 else {
+            organizationSearchResults = []
+            isSearchingOrganizations = false
+            return
+        }
+
+        isSearchingOrganizations = true
+        organizationSearchTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 450_000_000)
+                await self?.performOrganizationSearch(query: trimmedQuery)
+            } catch {
+                await self?.handleCancelledOrganizationSearch()
+            }
+        }
+    }
+
+    func selectOrganizationSuggestion(_ suggestion: OrganizationSuggestion, target: PartySearchTarget) {
+        switch target {
+        case .seller:
+            selectSeller(suggestion.party)
+        case .buyer:
+            selectBuyer(suggestion.party)
+        }
+
+        resetOrganizationSearch()
+    }
+
+    func resetOrganizationSearch() {
+        organizationSearchTask?.cancel()
+        organizationSearchTask = nil
+        organizationSearchQuery = ""
+        organizationSearchResults = []
+        organizationSearchErrorMessage = nil
+        isSearchingOrganizations = false
+    }
+
     func selectSeller(_ party: DocumentParty) {
         updateDraft { $0.seller = party }
     }
@@ -544,6 +607,33 @@ extension DocumentEditorViewModel {
 
     func updateBuyer(_ buyer: DocumentParty) {
         updateDraft { $0.buyer = buyer }
+    }
+}
+
+// MARK: - Organization Search
+
+private extension DocumentEditorViewModel {
+    func performOrganizationSearch(query: String) async {
+        guard Task.isCancelled == false else { return }
+
+        do {
+            let results = try await organizationSearchService.searchOrganizations(query: query)
+            guard Task.isCancelled == false else { return }
+            organizationSearchResults = results
+            organizationSearchErrorMessage = nil
+        } catch {
+            guard Task.isCancelled == false else { return }
+            organizationSearchResults = []
+            organizationSearchErrorMessage = error.localizedDescription
+        }
+
+        isSearchingOrganizations = false
+    }
+
+    func handleCancelledOrganizationSearch() {
+        if organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+            isSearchingOrganizations = false
+        }
     }
 }
 
