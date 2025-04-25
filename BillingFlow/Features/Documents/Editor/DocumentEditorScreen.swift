@@ -277,9 +277,12 @@ private extension DocumentEditorScreen {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(title: title, subtitle: subtitle)
 
-            organizationMenu(onSelect: onSelect)
-
-            organizationSearchCard(target: searchTarget)
+            if searchTarget == .seller {
+                sellerOrganizationBlock
+            } else {
+                organizationMenu(onSelect: onSelect)
+                organizationSearchCard(target: searchTarget)
+            }
 
             MaterialCard {
                 VStack(spacing: AppSpacing.md) {
@@ -350,6 +353,142 @@ private extension DocumentEditorScreen {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.organizationOptions.isEmpty)
+    }
+
+    var sellerOrganizationBlock: some View {
+        VStack(spacing: AppSpacing.md) {
+            MaterialCard {
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    HStack(alignment: .top, spacing: AppSpacing.md) {
+                        Image(systemName: "building.2.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(AppColor.Brand.primary)
+                            .frame(width: 38, height: 38)
+                            .background(AppColor.Brand.primary.opacity(0.10), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Моя организация")
+                                .font(AppFont.Text.caption)
+                                .foregroundStyle(AppColor.Text.secondary)
+
+                            Text(viewModel.draft.seller.displayName.isEmpty ? "Организация не выбрана" : viewModel.draft.seller.displayName)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(AppColor.Text.primary)
+                                .lineLimit(2)
+
+                            Text(sellerOrganizationSubtitle)
+                                .font(AppFont.Text.caption)
+                                .foregroundStyle(AppColor.Text.secondary)
+                                .lineLimit(2)
+                        }
+
+                        Spacer(minLength: AppSpacing.sm)
+                    }
+
+                    sellerOrganizationSelector
+
+                    if viewModel.draft.seller.isEmpty == false {
+                        sellerBankAccountSelector
+                    }
+                }
+            }
+
+            organizationSearchCard(target: .seller)
+        }
+    }
+
+    var sellerOrganizationSubtitle: String {
+        var parts: [String] = []
+
+        if viewModel.draft.seller.taxID.isEmpty == false {
+            parts.append("ИНН \(viewModel.draft.seller.taxID)")
+        }
+
+        if viewModel.draft.seller.bankName.isEmpty == false {
+            parts.append(viewModel.draft.seller.bankName)
+        }
+
+        if viewModel.draft.seller.bankAccount.isEmpty == false {
+            parts.append(viewModel.draft.seller.bankAccount)
+        }
+
+        return parts.isEmpty ? "Добавьте свою организацию через поиск или заполните вручную." : parts.joined(separator: " · ")
+    }
+
+    var sellerOrganizationSelector: some View {
+        Menu {
+            ForEach(viewModel.sellerOrganizationOptions) { option in
+                Button {
+                    viewModel.selectSellerOrganization(option)
+                } label: {
+                    Text(option.party.displayName.isEmpty ? "Без названия" : option.party.displayName)
+                }
+            }
+        } label: {
+            selectorLabel(
+                title: viewModel.sellerOrganizationOptions.isEmpty ? "Своих организаций пока нет" : "Сменить организацию",
+                systemImage: "building.2"
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.sellerOrganizationOptions.isEmpty)
+        .opacity(viewModel.sellerOrganizationOptions.isEmpty ? 0.55 : 1)
+    }
+
+    var sellerBankAccountSelector: some View {
+        Menu {
+            if viewModel.selectedSellerBankAccounts.isEmpty {
+                Button("Счетов пока нет") { }
+                    .disabled(true)
+            } else {
+                ForEach(viewModel.selectedSellerBankAccounts) { account in
+                    Button {
+                        viewModel.selectSellerBankAccount(account)
+                    } label: {
+                        Text("\(account.displayTitle) · \(account.displaySubtitle)")
+                    }
+                }
+            }
+        } label: {
+            selectorLabel(
+                title: sellerBankAccountTitle,
+                systemImage: "creditcard"
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.selectedSellerBankAccounts.isEmpty)
+        .opacity(viewModel.selectedSellerBankAccounts.isEmpty ? 0.55 : 1)
+    }
+
+    var sellerBankAccountTitle: String {
+        if viewModel.draft.seller.bankName.isEmpty == false || viewModel.draft.seller.bankAccount.isEmpty == false {
+            let bank = viewModel.draft.seller.bankName.isEmpty ? "Банк" : viewModel.draft.seller.bankName
+            let account = viewModel.draft.seller.bankAccount.isEmpty ? "счет не указан" : viewModel.draft.seller.bankAccount
+            return "\(bank) · \(account)"
+        }
+
+        return "Выбрать банк и счет"
+    }
+
+    func selectorLabel(title: String, systemImage: String) -> some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            Spacer(minLength: AppSpacing.sm)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 12, weight: .bold))
+        }
+        .font(AppFont.Control.button)
+        .foregroundStyle(AppColor.Text.primary)
+        .padding(.horizontal, AppSpacing.md)
+        .frame(height: 44)
+        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
     }
 
     func organizationSearchCard(target: DocumentEditorViewModel.PartySearchTarget) -> some View {

@@ -21,6 +21,9 @@ struct Organization: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var party: DocumentParty
     var role: Role
+    var bankAccounts: [OrganizationBankAccount]
+    var defaultBankAccountID: UUID?
+    var isDefault: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -39,13 +42,67 @@ struct Organization: Identifiable, Codable, Hashable, Sendable {
         id: UUID = UUID(),
         party: DocumentParty,
         role: Role,
+        bankAccounts: [OrganizationBankAccount] = [],
+        defaultBankAccountID: UUID? = nil,
+        isDefault: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.party = party
         self.role = role
+        self.bankAccounts = bankAccounts
+        self.defaultBankAccountID = defaultBankAccountID
+        self.isDefault = isDefault
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    var normalizedBankAccounts: [OrganizationBankAccount] {
+        let storedAccounts = bankAccounts.filter { $0.isEmpty == false }
+        if storedAccounts.isEmpty == false {
+            return storedAccounts
+        }
+
+        let account = OrganizationBankAccount(
+            bankName: party.bankName,
+            bankAccount: party.bankAccount,
+            bankCode: party.bankCode,
+            isDefault: true
+        )
+
+        return account.isEmpty ? [] : [account]
+    }
+
+    var defaultBankAccount: OrganizationBankAccount? {
+        let accounts = normalizedBankAccounts
+        return accounts.first { $0.id == defaultBankAccountID }
+            ?? accounts.first { $0.isDefault }
+            ?? accounts.first
+    }
+}
+
+extension Organization {
+    enum CodingKeys: String, CodingKey {
+        case id
+        case party
+        case role
+        case bankAccounts
+        case defaultBankAccountID
+        case isDefault
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        party = try container.decode(DocumentParty.self, forKey: .party)
+        role = try container.decode(Role.self, forKey: .role)
+        bankAccounts = try container.decodeIfPresent([OrganizationBankAccount].self, forKey: .bankAccounts) ?? []
+        defaultBankAccountID = try container.decodeIfPresent(UUID.self, forKey: .defaultBankAccountID)
+        isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }

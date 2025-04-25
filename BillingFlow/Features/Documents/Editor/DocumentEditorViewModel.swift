@@ -49,6 +49,10 @@ final class DocumentEditorViewModel: ObservableObject {
     struct OrganizationOption: Identifiable, Hashable {
         let id: String
         let party: DocumentParty
+        let role: Organization.Role
+        let bankAccounts: [OrganizationBankAccount]
+        let defaultBankAccountID: UUID?
+        let isDefault: Bool
         let roleTitle: String
         let documentCount: Int
 
@@ -58,6 +62,12 @@ final class DocumentEditorViewModel: ObservableObject {
                 return "\(roleTitle) · \(taxText) · \(documentCount) док."
             }
             return "\(roleTitle) · \(taxText)"
+        }
+
+        var defaultBankAccount: OrganizationBankAccount? {
+            bankAccounts.first { $0.id == defaultBankAccountID }
+                ?? bankAccounts.first { $0.isDefault }
+                ?? bankAccounts.first
         }
     }
 
@@ -426,6 +436,21 @@ extension DocumentEditorViewModel {
         }
     }
 
+    var sellerOrganizationOptions: [OrganizationOption] {
+        organizationOptions.filter { option in
+            option.role == .seller || option.role == .mixed
+        }
+    }
+
+    var selectedSellerBankAccounts: [OrganizationBankAccount] {
+        selectedSellerOrganizationOption?.bankAccounts ?? []
+    }
+
+    var selectedSellerOrganizationOption: OrganizationOption? {
+        let currentOrganization = Organization(party: draft.seller, role: .seller)
+        return sellerOrganizationOptions.first { $0.id == currentOrganization.matchingKey }
+    }
+
     func title(for step: Step) -> String {
         switch step {
         case .start:
@@ -595,6 +620,22 @@ extension DocumentEditorViewModel {
 
     func selectSeller(_ party: DocumentParty) {
         updateDraft { $0.seller = party }
+    }
+
+    func selectSellerOrganization(_ option: OrganizationOption) {
+        var party = option.party
+
+        if let account = option.defaultBankAccount {
+            party = account.apply(to: party)
+        }
+
+        selectSeller(party)
+    }
+
+    func selectSellerBankAccount(_ account: OrganizationBankAccount) {
+        updateDraft { draft in
+            draft.seller = account.apply(to: draft.seller)
+        }
     }
 
     func selectBuyer(_ party: DocumentParty) {
@@ -808,14 +849,25 @@ private extension DocumentEditorViewModel {
         storedOrganizations: [Organization],
         documents: [BusinessDocument]
     ) -> [OrganizationOption] {
-        var parties: [String: (party: DocumentParty, role: Organization.Role, count: Int, updatedAt: Date)] = [:]
+        var parties: [String: (
+            party: DocumentParty,
+            role: Organization.Role,
+            count: Int,
+            updatedAt: Date,
+            bankAccounts: [OrganizationBankAccount],
+            defaultBankAccountID: UUID?,
+            isDefault: Bool
+        )] = [:]
 
         for organization in storedOrganizations where organization.party.isEmpty == false {
             parties[organization.matchingKey] = (
                 organization.party,
                 organization.role,
                 0,
-                organization.updatedAt
+                organization.updatedAt,
+                organization.normalizedBankAccounts,
+                organization.defaultBankAccountID,
+                organization.isDefault
             )
         }
 
@@ -841,6 +893,10 @@ private extension DocumentEditorViewModel {
                 return OrganizationOption(
                     id: organization.matchingKey,
                     party: value.party,
+                    role: value.role,
+                    bankAccounts: value.bankAccounts,
+                    defaultBankAccountID: value.defaultBankAccountID,
+                    isDefault: value.isDefault,
                     roleTitle: value.role.title,
                     documentCount: value.count
                 )
@@ -894,7 +950,15 @@ private extension DocumentEditorViewModel {
         party: DocumentParty,
         role: Organization.Role,
         date: Date,
-        into parties: inout [String: (party: DocumentParty, role: Organization.Role, count: Int, updatedAt: Date)]
+        into parties: inout [String: (
+            party: DocumentParty,
+            role: Organization.Role,
+            count: Int,
+            updatedAt: Date,
+            bankAccounts: [OrganizationBankAccount],
+            defaultBankAccountID: UUID?,
+            isDefault: Bool
+        )]
     ) {
         guard party.isEmpty == false else { return }
 
@@ -904,9 +968,21 @@ private extension DocumentEditorViewModel {
             existing.count += 1
             existing.updatedAt = max(existing.updatedAt, date)
             existing.role = existing.role == role ? role : .mixed
+            if existing.bankAccounts.isEmpty {
+                existing.bankAccounts = organization.normalizedBankAccounts
+                existing.defaultBankAccountID = organization.defaultBankAccount?.id
+            }
             parties[organization.matchingKey] = existing
         } else {
-            parties[organization.matchingKey] = (party, role, 1, date)
+            parties[organization.matchingKey] = (
+                party,
+                role,
+                1,
+                date,
+                organization.normalizedBankAccounts,
+                organization.defaultBankAccount?.id,
+                false
+            )
         }
     }
 }
