@@ -22,7 +22,12 @@ final class ProfileCoordinator: NSObject {
     // MARK: - Public API
 
     func start() {
+        let viewModel = ProfileViewModel(
+            organizationsRepository: dependencies.organizationsRepository
+        )
+
         let view = ProfileScreen(
+            viewModel: viewModel,
             onOrganizationProfile: { [weak self] in
                 self?.showOrganizationProfile()
             },
@@ -53,8 +58,13 @@ final class ProfileCoordinator: NSObject {
 
 private extension ProfileCoordinator {
     func showOrganizationProfile() {
+        let viewModel = OrganizationProfileSettingsViewModel(
+            organizationsRepository: dependencies.organizationsRepository,
+            organizationSearchService: dependencies.organizationSearchService
+        )
+
         push(
-            OrganizationProfileSettingsScreen(),
+            OrganizationProfileSettingsScreen(viewModel: viewModel),
             title: "Профиль организации"
         )
     }

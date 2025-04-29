@@ -280,7 +280,10 @@ private extension DocumentEditorScreen {
             if searchTarget == .seller {
                 sellerOrganizationBlock
             } else {
-                organizationMenu(onSelect: onSelect)
+                organizationMenu(
+                    title: "Выбрать из недавних контрагентов",
+                    onSelect: onSelect
+                )
                 organizationSearchCard(target: searchTarget)
             }
 
@@ -325,11 +328,16 @@ private extension DocumentEditorScreen {
             }
         }
         .onAppear {
-            viewModel.activateOrganizationSearch(target: searchTarget)
+            if searchTarget != .seller {
+                viewModel.activateOrganizationSearch(target: searchTarget)
+            }
         }
     }
 
-    func organizationMenu(onSelect: @escaping (DocumentParty) -> Void) -> some View {
+    func organizationMenu(
+        title: String,
+        onSelect: @escaping (DocumentParty) -> Void
+    ) -> some View {
         Menu {
             ForEach(viewModel.organizationOptions) { option in
                 Button {
@@ -341,7 +349,7 @@ private extension DocumentEditorScreen {
         } label: {
             HStack(spacing: AppSpacing.sm) {
                 Image(systemName: "building.2.fill")
-                Text(viewModel.organizationOptions.isEmpty ? "Организаций пока нет" : "Выбрать из организаций")
+                Text(viewModel.organizationOptions.isEmpty ? "Недавних организаций пока нет" : title)
                 Spacer()
                 Image(systemName: "chevron.down")
             }
@@ -392,8 +400,6 @@ private extension DocumentEditorScreen {
                     }
                 }
             }
-
-            organizationSearchCard(target: .seller)
         }
     }
 
@@ -412,7 +418,7 @@ private extension DocumentEditorScreen {
             parts.append(viewModel.draft.seller.bankAccount)
         }
 
-        return parts.isEmpty ? "Добавьте свою организацию через поиск или заполните вручную." : parts.joined(separator: " · ")
+        return parts.isEmpty ? "Добавьте свою организацию в профиле." : parts.joined(separator: " · ")
     }
 
     var sellerOrganizationSelector: some View {

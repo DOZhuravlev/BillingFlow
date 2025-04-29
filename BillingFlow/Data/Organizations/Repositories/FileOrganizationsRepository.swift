@@ -39,6 +39,12 @@ actor FileOrganizationsRepository: OrganizationsRepositoryProtocol {
         try persistOrganizations(organizations)
     }
 
+    func deleteOrganization(id: UUID) async throws {
+        var organizations = try loadOrganizationsIfNeeded()
+        organizations.removeAll { $0.id == id }
+        try persistOrganizations(organizations)
+    }
+
     func upsert(party: DocumentParty, role: Organization.Role) async throws {
         guard party.isEmpty == false else { return }
 

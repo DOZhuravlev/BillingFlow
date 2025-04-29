@@ -2,6 +2,10 @@ import SwiftUI
 
 struct ProfileScreen: View {
 
+    // MARK: - State
+
+    @StateObject private var viewModel: ProfileViewModel
+
     // MARK: - Actions
 
     let onOrganizationProfile: () -> Void
@@ -11,10 +15,12 @@ struct ProfileScreen: View {
     // MARK: - Initialization
 
     init(
+        viewModel: ProfileViewModel,
         onOrganizationProfile: @escaping () -> Void = { },
         onSignatureAndStamp: @escaping () -> Void = { },
         onNotifications: @escaping () -> Void = { }
     ) {
+        _viewModel = StateObject(wrappedValue: viewModel)
         self.onOrganizationProfile = onOrganizationProfile
         self.onSignatureAndStamp = onSignatureAndStamp
         self.onNotifications = onNotifications
@@ -37,6 +43,11 @@ struct ProfileScreen: View {
                 .padding(.bottom, AppLayout.floatingTabBarBottomInset)
             }
             .scrollIndicators(.hidden)
+        }
+        .onAppear {
+            Task {
+                await viewModel.load()
+            }
         }
     }
 }
@@ -61,12 +72,12 @@ private extension ProfileScreen {
                 organizationAvatar
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("ООО Автозаказ")
+                    Text(primaryOrganizationName)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white)
                         .lineLimit(2)
 
-                    Text("Профиль, реквизиты и оформление документов")
+                    Text(primaryOrganizationSubtitle)
                         .font(AppFont.Text.caption)
                         .foregroundStyle(.white.opacity(0.72))
                 }
@@ -83,7 +94,7 @@ private extension ProfileScreen {
     }
 
     var organizationAvatar: some View {
-        Text("АЗ")
+        Text(primaryOrganizationInitials)
             .font(.system(size: 20, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: 56, height: 56)
@@ -95,6 +106,43 @@ private extension ProfileScreen {
                             .stroke(.white.opacity(0.34), lineWidth: 1)
                     }
             }
+    }
+
+    var primaryOrganizationName: String {
+        viewModel.primaryOrganization?.party.displayName.isEmpty == false
+            ? viewModel.primaryOrganization?.party.displayName ?? "Организация не выбрана"
+            : "Организация не выбрана"
+    }
+
+    var primaryOrganizationSubtitle: String {
+        guard let organization = viewModel.primaryOrganization else {
+            return "Добавьте свою организацию и банковские реквизиты"
+        }
+
+        var parts: [String] = []
+
+        if organization.party.taxID.isEmpty == false {
+            parts.append("ИНН \(organization.party.taxID)")
+        }
+
+        if organization.defaultBankAccount?.bankName.isEmpty == false {
+            parts.append(organization.defaultBankAccount?.bankName ?? "")
+        }
+
+        return parts.isEmpty ? "Профиль, реквизиты и оформление документов" : parts.joined(separator: " · ")
+    }
+
+    var primaryOrganizationInitials: String {
+        let name = primaryOrganizationName
+        let initials = name
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+            .map(String.init)
+            .joined()
+            .uppercased()
+
+        return initials.isEmpty ? "?" : initials
     }
 }
 
@@ -214,5 +262,21 @@ private extension ProfileScreen {
 }
 
 #Preview {
-    ProfileScreen()
+    ProfileScreen(viewModel: ProfileViewModel(organizationsRepository: PreviewProfileOrganizationsRepository()))
+}
+
+private actor PreviewProfileOrganizationsRepository: OrganizationsRepositoryProtocol {
+    func fetchOrganizations() async throws -> [Organization] {
+        [
+            Organization(
+                party: DocumentParty(displayName: "ООО Автозаказ", taxID: "7707083893"),
+                role: .seller,
+                isDefault: true
+            )
+        ]
+    }
+
+    func save(organization: Organization) async throws { }
+    func deleteOrganization(id: UUID) async throws { }
+    func upsert(party: DocumentParty, role: Organization.Role) async throws { }
 }
