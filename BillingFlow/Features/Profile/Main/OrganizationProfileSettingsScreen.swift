@@ -60,101 +60,119 @@ private extension OrganizationProfileSettingsScreen {
             } else if viewModel.organizations.isEmpty {
                 emptyOrganizationsCard
             } else {
-                ScrollView(.horizontal) {
-                    HStack(spacing: AppSpacing.sm) {
+                MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
+                    VStack(spacing: 0) {
                         ForEach(viewModel.organizations) { organization in
-                            organizationChip(organization)
+                            organizationRow(organization)
+
+                            if organization.id != viewModel.organizations.last?.id {
+                                divider
+                                    .padding(.leading, 72)
+                            }
                         }
 
-                        addOrganizationChip
+                        divider
+                            .padding(.leading, 72)
+
+                        addOrganizationRow
                     }
-                    .padding(.horizontal, AppSpacing.md)
                 }
-                .scrollIndicators(.hidden)
-                .padding(.horizontal, -AppSpacing.md)
             }
         }
     }
 
-    func organizationChip(_ organization: Organization) -> some View {
+    func organizationRow(_ organization: Organization) -> some View {
         let isSelected = organization.id == viewModel.selectedOrganizationID
 
         return Button {
             viewModel.selectOrganization(organization)
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: AppSpacing.sm) {
-                    Text(initials(for: organization.party.displayName))
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isSelected ? .white : AppColor.Text.primary)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
-                                .fill(isSelected ? AppColor.Brand.primary : Color.black.opacity(0.06))
-                        }
+            HStack(alignment: .top, spacing: AppSpacing.md) {
+                Text(initials(for: organization.party.displayName))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(isSelected ? .white : AppColor.Text.primary)
+                    .frame(width: 44, height: 44)
+                    .background {
+                        RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                            .fill(isSelected ? AppColor.Brand.primary : Color.black.opacity(0.06))
+                    }
 
-                    if organization.isDefault {
-                        Text("Основная")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(isSelected ? .white.opacity(0.86) : AppColor.Brand.primary)
-                            .padding(.horizontal, 8)
-                            .frame(height: 24)
-                            .background {
-                                Capsule()
-                                    .fill(isSelected ? .white.opacity(0.18) : AppColor.Brand.primary.opacity(0.12))
-                            }
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: AppSpacing.sm) {
+                        Text(organization.party.displayName.isEmpty ? "Без названия" : organization.party.displayName)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.primary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if organization.isDefault {
+                            statusPill("Основная")
+                        }
+                    }
+
+                    Text(organization.party.taxID.isEmpty ? "ИНН не указан" : "ИНН \(organization.party.taxID)")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .lineLimit(1)
+
+                    if let account = organization.defaultBankAccount {
+                        Text(account.displaySubtitle)
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .lineLimit(1)
                     }
                 }
 
-                Text(organization.party.displayName.isEmpty ? "Без названия" : organization.party.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(isSelected ? .white : AppColor.Text.primary)
-                    .lineLimit(2)
+                Spacer(minLength: AppSpacing.sm)
 
-                Text(organization.party.taxID.isEmpty ? "ИНН не указан" : "ИНН \(organization.party.taxID)")
-                    .font(AppFont.Text.caption)
-                    .foregroundStyle(isSelected ? .white.opacity(0.72) : AppColor.Text.secondary)
-                    .lineLimit(1)
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
             }
-            .frame(width: 188, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppSpacing.md)
             .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(isSelected ? AppColor.Brand.primary : .white.opacity(0.92))
+                if isSelected {
+                    Rectangle()
+                        .fill(AppColor.Brand.primary.opacity(0.08))
+                }
             }
         }
         .buttonStyle(.plain)
     }
 
-    var addOrganizationChip: some View {
+    var addOrganizationRow: some View {
         Button {
             viewModel.startNewOrganization()
         } label: {
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            HStack(spacing: AppSpacing.md) {
                 Image(systemName: "plus")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(AppColor.Brand.primary)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 44, height: 44)
                     .background {
                         RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
                             .fill(AppColor.Brand.primary.opacity(0.12))
                     }
 
-                Text("Добавить")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColor.Text.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Добавить организацию")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
 
-                Text("ИНН, реквизиты, счета")
-                    .font(AppFont.Text.caption)
+                    Text("Найти по ИНН или заполнить вручную")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+
+                Spacer(minLength: AppSpacing.sm)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(AppColor.Text.secondary)
-                    .lineLimit(1)
             }
-            .frame(width: 150, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppSpacing.md)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(.white.opacity(0.92))
-            }
         }
         .buttonStyle(.plain)
     }
@@ -398,54 +416,88 @@ private extension OrganizationProfileSettingsScreen {
     }
 
     var bankAccountsCard: some View {
-        MaterialCard(cornerRadius: AppRadius.lg) {
-            VStack(alignment: .leading, spacing: AppSpacing.md) {
-                HStack(alignment: .center, spacing: AppSpacing.sm) {
-                    sectionHeader(
-                        title: "Банковские счета",
-                        subtitle: "Можно хранить несколько счетов одной компании"
-                    )
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            sectionHeader(
+                title: "Банковские реквизиты",
+                subtitle: "Расчетные счета, БИК и корреспондентские счета",
+                onDarkBackground: true
+            )
 
-                    Spacer(minLength: AppSpacing.sm)
-
-                    Button {
-                        viewModel.addBankAccount()
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
-                            .background {
-                                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
-                                    .fill(AppColor.Brand.primary)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
-
+            VStack(spacing: AppSpacing.md) {
                 ForEach(viewModel.draft.bankAccounts) { account in
                     bankAccountCard(account)
                 }
+
+                addBankAccountButton
             }
         }
     }
 
-    func bankAccountCard(_ account: OrganizationBankAccount) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack(spacing: AppSpacing.sm) {
-                Button {
-                    viewModel.setDefaultBankAccount(id: account.id)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: account.id == viewModel.draft.defaultBankAccountID ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 16, weight: .semibold))
-
-                        Text("Основной счет")
-                            .font(.system(size: 13, weight: .semibold))
+    var addBankAccountButton: some View {
+        Button {
+            viewModel.addBankAccount()
+        } label: {
+            HStack(spacing: AppSpacing.md) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(AppColor.Brand.primary)
+                    .frame(width: 40, height: 40)
+                    .background {
+                        RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                            .fill(AppColor.Brand.primary.opacity(0.12))
                     }
-                    .foregroundStyle(account.id == viewModel.draft.defaultBankAccountID ? AppColor.Brand.primary : AppColor.Text.secondary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Добавить банковский счет")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
+
+                    Text("Для счетов в разных банках или филиалах")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
                 }
-                .buttonStyle(.plain)
+
+                Spacer(minLength: AppSpacing.sm)
+            }
+            .padding(AppSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    func bankAccountCard(_ account: OrganizationBankAccount) -> some View {
+        let isDefault = account.id == viewModel.draft.defaultBankAccountID
+
+        return VStack(alignment: .leading, spacing: AppSpacing.md) {
+            HStack(alignment: .top, spacing: AppSpacing.md) {
+                Image(systemName: "building.columns.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 42, height: 42)
+                    .background {
+                        RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                            .fill(AppColor.Brand.primary)
+                    }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: AppSpacing.sm) {
+                        Text(bankValue(account.id, \.bankName).isEmpty ? "Банк не указан" : bankValue(account.id, \.bankName))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.primary)
+                            .lineLimit(2)
+
+                        if isDefault {
+                            statusPill("Основной")
+                        }
+                    }
+
+                    Text(bankValue(account.id, \.bankAccount).isEmpty ? "Расчетный счет не указан" : groupedAccountNumber(bankValue(account.id, \.bankAccount)))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                }
 
                 Spacer(minLength: AppSpacing.sm)
 
@@ -462,33 +514,51 @@ private extension OrganizationProfileSettingsScreen {
                 .opacity(viewModel.draft.bankAccounts.count == 1 ? 0.35 : 1)
             }
 
-            formField("Банк", value: bankValue(account.id, \.bankName)) {
-                viewModel.updateBankAccount(id: account.id, field: .bankName, value: $0)
-            }
+            VStack(spacing: AppSpacing.sm) {
+                formField("Банк", value: bankValue(account.id, \.bankName)) {
+                    viewModel.updateBankAccount(id: account.id, field: .bankName, value: $0)
+                }
 
-            HStack(spacing: AppSpacing.sm) {
                 formField("Расчетный счет", value: bankValue(account.id, \.bankAccount)) {
                     viewModel.updateBankAccount(id: account.id, field: .bankAccount, value: $0)
                 }
                 .keyboardType(.numberPad)
 
-                formField("БИК", value: bankValue(account.id, \.bankCode)) {
-                    viewModel.updateBankAccount(id: account.id, field: .bankCode, value: $0)
+                HStack(spacing: AppSpacing.sm) {
+                    formField("БИК", value: bankValue(account.id, \.bankCode)) {
+                        viewModel.updateBankAccount(id: account.id, field: .bankCode, value: $0)
+                    }
+                    .keyboardType(.numberPad)
+
+                    formField("Корр. счет", value: bankValue(account.id, \.correspondentAccount)) {
+                        viewModel.updateBankAccount(id: account.id, field: .correspondentAccount, value: $0)
+                    }
+                    .keyboardType(.numberPad)
                 }
-                .keyboardType(.numberPad)
             }
 
-            formField("Корреспондентский счет", value: bankValue(account.id, \.correspondentAccount)) {
-                viewModel.updateBankAccount(id: account.id, field: .correspondentAccount, value: $0)
+            if isDefault == false {
+                Button {
+                    viewModel.setDefaultBankAccount(id: account.id)
+                } label: {
+                    Label("Сделать основным счетом", systemImage: "checkmark.circle")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColor.Brand.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .background(AppColor.Brand.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
-            .keyboardType(.numberPad)
         }
         .padding(AppSpacing.md)
-        .background(Color.black.opacity(0.04), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
     }
 
+    @ViewBuilder
     var actionsCard: some View {
-        VStack(spacing: AppSpacing.sm) {
+        if viewModel.errorMessage != nil || viewModel.hasUnsavedChanges || viewModel.isNewOrganization == false {
+            VStack(spacing: AppSpacing.sm) {
             if let message = viewModel.errorMessage {
                 Text(message)
                     .font(AppFont.Text.caption)
@@ -496,35 +566,38 @@ private extension OrganizationProfileSettingsScreen {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Button {
-                Task {
-                    await viewModel.save()
-                }
-            } label: {
-                Text(viewModel.saveButtonTitle)
-                    .font(AppFont.Control.button)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background {
-                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                            .fill(viewModel.canSave ? AppColor.Brand.primary : .white.opacity(0.18))
+                if viewModel.hasUnsavedChanges {
+                    Button {
+                        Task {
+                            await viewModel.save()
+                        }
+                    } label: {
+                        Text(viewModel.saveButtonTitle)
+                            .font(AppFont.Control.button)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background {
+                                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                                    .fill(viewModel.canSave ? AppColor.Brand.primary : .white.opacity(0.18))
+                            }
                     }
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.canSave == false)
-
-            if viewModel.isNewOrganization == false {
-                Button {
-                    showsDeleteConfirmation = true
-                } label: {
-                    Text("Удалить организацию")
-                        .font(AppFont.Control.button)
-                        .foregroundStyle(.white.opacity(0.78))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.canSave == false)
                 }
-                .buttonStyle(.plain)
+
+                if viewModel.isNewOrganization == false {
+                    Button {
+                        showsDeleteConfirmation = true
+                    } label: {
+                        Text("Удалить организацию")
+                            .font(AppFont.Control.button)
+                            .foregroundStyle(.white.opacity(0.78))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -577,11 +650,36 @@ private extension OrganizationProfileSettingsScreen {
             .frame(height: 1)
     }
 
+    func statusPill(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(AppColor.Brand.primary)
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background {
+                Capsule()
+                    .fill(AppColor.Brand.primary.opacity(0.12))
+            }
+    }
+
     func bankValue(
         _ id: UUID,
         _ keyPath: KeyPath<OrganizationBankAccount, String>
     ) -> String {
         viewModel.draft.bankAccounts.first { $0.id == id }?[keyPath: keyPath] ?? ""
+    }
+
+    func groupedAccountNumber(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        guard digits.isEmpty == false else { return value }
+
+        return stride(from: 0, to: digits.count, by: 4)
+            .map { startIndex in
+                let start = digits.index(digits.startIndex, offsetBy: startIndex)
+                let end = digits.index(start, offsetBy: min(4, digits.distance(from: start, to: digits.endIndex)))
+                return String(digits[start..<end])
+            }
+            .joined(separator: " ")
     }
 
     func initials(for name: String) -> String {

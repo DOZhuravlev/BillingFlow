@@ -2,6 +2,10 @@ import SwiftUI
 
 struct ProfileFlowRootView: UIViewControllerRepresentable {
 
+    // MARK: - State
+
+    @ObservedObject private var appRouteStore: AppRouteStore
+
     // MARK: - Dependencies
 
     private let dependencies: AppDependencies
@@ -10,6 +14,7 @@ struct ProfileFlowRootView: UIViewControllerRepresentable {
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
+        self.appRouteStore = dependencies.appRouteStore
     }
 
     // MARK: - Public API
@@ -34,7 +39,12 @@ struct ProfileFlowRootView: UIViewControllerRepresentable {
     func updateUIViewController(
         _ uiViewController: UINavigationController,
         context: Context
-    ) { }
+    ) {
+        guard let requestID = appRouteStore.organizationProfileRequestID else { return }
+
+        context.coordinator.profileCoordinator?.showOrganizationProfileSettings()
+        appRouteStore.consumeOrganizationProfileRequest(id: requestID)
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()

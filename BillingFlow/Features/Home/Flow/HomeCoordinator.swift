@@ -212,6 +212,7 @@ private extension HomeCoordinator {
             documentsRepository: dependencies.documentsRepository,
             organizationsRepository: dependencies.organizationsRepository,
             organizationSearchService: dependencies.organizationSearchService,
+            appRouteStore: dependencies.appRouteStore,
             documentEventsStore: dependencies.documentEventsStore,
             documentFactory: dependencies.documentFactory,
             documentValidator: dependencies.documentValidator

@@ -21,7 +21,7 @@ final class OrganizationProfileSettingsViewModel: ObservableObject {
         case correspondentAccount
     }
 
-    struct Draft {
+    struct Draft: Equatable {
         var id: UUID?
         var party: DocumentParty
         var bankAccounts: [OrganizationBankAccount]
@@ -58,6 +58,7 @@ final class OrganizationProfileSettingsViewModel: ObservableObject {
     private let organizationsRepository: OrganizationsRepositoryProtocol
     private let organizationSearchService: OrganizationSearchServiceProtocol
     private var searchTask: Task<Void, Never>?
+    private var savedDraft: Draft = .empty()
 
     // MARK: - Initialization
 
@@ -87,6 +88,10 @@ extension OrganizationProfileSettingsViewModel {
 
     var canSave: Bool {
         draft.party.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
+    var hasUnsavedChanges: Bool {
+        draft != savedDraft
     }
 
     var title: String {
@@ -125,6 +130,7 @@ extension OrganizationProfileSettingsViewModel {
                 selectOrganization(defaultOrganization)
             } else {
                 draft = .empty(isDefault: true)
+                savedDraft = draft
                 resetSearch()
                 isSearchVisible = false
             }
@@ -139,6 +145,7 @@ extension OrganizationProfileSettingsViewModel {
 extension OrganizationProfileSettingsViewModel {
     func startNewOrganization() {
         draft = .empty(isDefault: organizations.isEmpty)
+        savedDraft = draft
         resetSearch()
         isSearchVisible = true
     }
@@ -153,6 +160,7 @@ extension OrganizationProfileSettingsViewModel {
             isDefault: organization.isDefault,
             createdAt: organization.createdAt
         )
+        savedDraft = draft
         resetSearch()
         isSearchVisible = false
     }

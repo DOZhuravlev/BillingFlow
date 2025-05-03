@@ -22,6 +22,7 @@ struct DocumentsFlowRootView: UIViewControllerRepresentable {
             documentsRepository: dependencies.documentsRepository,
             organizationsRepository: dependencies.organizationsRepository,
             organizationSearchService: dependencies.organizationSearchService,
+            appRouteStore: dependencies.appRouteStore,
             tabBarVisibilityStore: dependencies.tabBarVisibilityStore,
             documentEventsStore: dependencies.documentEventsStore,
             documentFactory: dependencies.documentFactory,

@@ -93,6 +93,7 @@ final class DocumentEditorViewModel: ObservableObject {
     private let documentsRepository: DocumentsRepositoryProtocol
     private let organizationsRepository: OrganizationsRepositoryProtocol
     private let organizationSearchService: OrganizationSearchServiceProtocol
+    private let appRouteStore: AppRouteStore
     private let documentEventsStore: DocumentEventsStore
     private let documentFactory: DocumentFactory
     private let documentValidator: DocumentValidator
@@ -108,6 +109,7 @@ final class DocumentEditorViewModel: ObservableObject {
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
         organizationSearchService: OrganizationSearchServiceProtocol,
+        appRouteStore: AppRouteStore,
         documentEventsStore: DocumentEventsStore,
         documentFactory: DocumentFactory,
         documentValidator: DocumentValidator
@@ -117,6 +119,7 @@ final class DocumentEditorViewModel: ObservableObject {
         self.documentsRepository = documentsRepository
         self.organizationsRepository = organizationsRepository
         self.organizationSearchService = organizationSearchService
+        self.appRouteStore = appRouteStore
         self.documentEventsStore = documentEventsStore
         self.documentFactory = documentFactory
         self.documentValidator = documentValidator
@@ -281,9 +284,9 @@ extension DocumentEditorViewModel {
     var sellerStepSubtitle: String {
         switch draft.type {
         case .invoice, .deliveryNote:
-            return "Выберите продавца из организаций или заполните реквизиты вручную."
+            return "Выберите свою организацию и банковский счет из профиля."
         case .act:
-            return "Выберите исполнителя из организаций или заполните реквизиты вручную."
+            return "Выберите исполнителя и банковский счет из профиля."
         }
     }
 
@@ -439,6 +442,12 @@ extension DocumentEditorViewModel {
     var sellerOrganizationOptions: [OrganizationOption] {
         organizationOptions.filter { option in
             option.role == .seller || option.role == .mixed
+        }
+    }
+
+    var buyerOrganizationOptions: [OrganizationOption] {
+        organizationOptions.filter { option in
+            option.role == .buyer || option.role == .mixed
         }
     }
 
@@ -646,6 +655,11 @@ extension DocumentEditorViewModel {
         updateDraft { $0.seller = seller }
     }
 
+    func openOrganizationProfile() {
+        coordinator?.pop()
+        appRouteStore.openOrganizationProfile()
+    }
+
     func updateBuyer(_ buyer: DocumentParty) {
         updateDraft { $0.buyer = buyer }
     }
@@ -795,9 +809,9 @@ private extension DocumentEditorViewModel {
         }
 
         do {
+            try await documentsRepository.save(document: readyDocument)
             try await organizationsRepository.upsert(party: draft.seller, role: .seller)
             try await organizationsRepository.upsert(party: draft.buyer, role: .buyer)
-            try await documentsRepository.save(document: readyDocument)
             documentEventsStore.sendDocumentsDidChange()
             clearAutosavedDraft()
             coordinator?.finishDocumentFlowAfterSave()
@@ -913,6 +927,10 @@ private extension DocumentEditorViewModel {
         guard draft.seller.isEmpty else { return }
 
         let defaultSeller = organizations.first { organization in
+            organization.party.isEmpty == false && organization.role == .seller && organization.isDefault
+        } ?? organizations.first { organization in
+            organization.party.isEmpty == false && organization.isDefault
+        } ?? organizations.first { organization in
             organization.party.isEmpty == false && organization.role == .seller
         } ?? organizations.first { organization in
             organization.party.isEmpty == false && organization.role == .mixed
@@ -920,7 +938,12 @@ private extension DocumentEditorViewModel {
 
         guard let defaultSeller else { return }
 
-        draft.seller = defaultSeller.party
+        var party = defaultSeller.party
+        if let account = defaultSeller.defaultBankAccount {
+            party = account.apply(to: party)
+        }
+
+        draft.seller = party
         draft.updatedAt = Date()
         autosaveDraft()
     }

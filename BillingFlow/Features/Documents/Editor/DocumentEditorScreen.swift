@@ -285,46 +285,10 @@ private extension DocumentEditorScreen {
                     onSelect: onSelect
                 )
                 organizationSearchCard(target: searchTarget)
-            }
-
-            MaterialCard {
-                VStack(spacing: AppSpacing.md) {
-                    partyTextField("Название", value: party.displayName) { value in
-                        var next = party
-                        next.displayName = value
-                        onUpdate(next)
-                    }
-                    partyTextField("ИНН", value: party.taxID) { value in
-                        var next = party
-                        next.taxID = value
-                        onUpdate(next)
-                    }
-                    partyTextField("КПП / ОГРН", value: party.registrationNumber) { value in
-                        var next = party
-                        next.registrationNumber = value
-                        onUpdate(next)
-                    }
-                    partyTextField("Адрес", value: party.address) { value in
-                        var next = party
-                        next.address = value
-                        onUpdate(next)
-                    }
-                    partyTextField("Банк", value: party.bankName) { value in
-                        var next = party
-                        next.bankName = value
-                        onUpdate(next)
-                    }
-                    partyTextField("Расчетный счет", value: party.bankAccount) { value in
-                        var next = party
-                        next.bankAccount = value
-                        onUpdate(next)
-                    }
-                    partyTextField("БИК", value: party.bankCode) { value in
-                        var next = party
-                        next.bankCode = value
-                        onUpdate(next)
-                    }
-                }
+                partyFieldsCard(
+                    party: party,
+                    onUpdate: onUpdate
+                )
             }
         }
         .onAppear {
@@ -339,7 +303,7 @@ private extension DocumentEditorScreen {
         onSelect: @escaping (DocumentParty) -> Void
     ) -> some View {
         Menu {
-            ForEach(viewModel.organizationOptions) { option in
+            ForEach(viewModel.buyerOrganizationOptions) { option in
                 Button {
                     onSelect(option.party)
                 } label: {
@@ -349,7 +313,7 @@ private extension DocumentEditorScreen {
         } label: {
             HStack(spacing: AppSpacing.sm) {
                 Image(systemName: "building.2.fill")
-                Text(viewModel.organizationOptions.isEmpty ? "Недавних организаций пока нет" : title)
+                Text(viewModel.buyerOrganizationOptions.isEmpty ? "Недавних контрагентов пока нет" : title)
                 Spacer()
                 Image(systemName: "chevron.down")
             }
@@ -360,7 +324,52 @@ private extension DocumentEditorScreen {
             .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(viewModel.organizationOptions.isEmpty)
+        .disabled(viewModel.buyerOrganizationOptions.isEmpty)
+    }
+
+    func partyFieldsCard(
+        party: DocumentParty,
+        onUpdate: @escaping (DocumentParty) -> Void
+    ) -> some View {
+        MaterialCard {
+            VStack(spacing: AppSpacing.md) {
+                partyTextField("Название", value: party.displayName) { value in
+                    var next = party
+                    next.displayName = value
+                    onUpdate(next)
+                }
+                partyTextField("ИНН", value: party.taxID) { value in
+                    var next = party
+                    next.taxID = value
+                    onUpdate(next)
+                }
+                partyTextField("КПП / ОГРН", value: party.registrationNumber) { value in
+                    var next = party
+                    next.registrationNumber = value
+                    onUpdate(next)
+                }
+                partyTextField("Адрес", value: party.address) { value in
+                    var next = party
+                    next.address = value
+                    onUpdate(next)
+                }
+                partyTextField("Банк", value: party.bankName) { value in
+                    var next = party
+                    next.bankName = value
+                    onUpdate(next)
+                }
+                partyTextField("Расчетный счет", value: party.bankAccount) { value in
+                    var next = party
+                    next.bankAccount = value
+                    onUpdate(next)
+                }
+                partyTextField("БИК", value: party.bankCode) { value in
+                    var next = party
+                    next.bankCode = value
+                    onUpdate(next)
+                }
+            }
+        }
     }
 
     var sellerOrganizationBlock: some View {
@@ -397,6 +406,9 @@ private extension DocumentEditorScreen {
 
                     if viewModel.draft.seller.isEmpty == false {
                         sellerBankAccountSelector
+                        sellerReadOnlyDetails
+                    } else {
+                        sellerEmptyState
                     }
                 }
             }
@@ -419,6 +431,105 @@ private extension DocumentEditorScreen {
         }
 
         return parts.isEmpty ? "Добавьте свою организацию в профиле." : parts.joined(separator: " · ")
+    }
+
+    var sellerReadOnlyDetails: some View {
+        VStack(spacing: 0) {
+            readOnlyDetailRow(
+                title: "Название",
+                value: viewModel.draft.seller.displayName
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "ИНН",
+                value: viewModel.draft.seller.taxID
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "КПП / ОГРН",
+                value: viewModel.draft.seller.registrationNumber
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "Адрес",
+                value: viewModel.draft.seller.address
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "Банк",
+                value: viewModel.draft.seller.bankName
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "Расчетный счет",
+                value: viewModel.draft.seller.bankAccount
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "БИК",
+                value: viewModel.draft.seller.bankCode
+            )
+        }
+        .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+    }
+
+    var sellerEmptyState: some View {
+        HStack(alignment: .top, spacing: AppSpacing.sm) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(AppColor.Brand.primary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Своя организация не выбрана")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+
+                Text("Добавьте организацию и банковский счет в профиле, затем вернитесь к созданию документа.")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    viewModel.openOrganizationProfile()
+                } label: {
+                    Label("Открыть профиль организации", systemImage: "arrow.right.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, AppSpacing.md)
+                        .frame(height: 36)
+                        .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+        }
+        .padding(AppSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppColor.Brand.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+    }
+
+    func readOnlyDetailRow(title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: AppSpacing.md) {
+            Text(title)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+                .frame(width: 104, alignment: .leading)
+
+            Text(value.isEmpty ? "Не указано" : value)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(value.isEmpty ? AppColor.Text.secondary : AppColor.Text.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, 10)
+    }
+
+    var readOnlyDivider: some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.06))
+            .frame(height: 1)
+            .padding(.leading, AppSpacing.md)
     }
 
     var sellerOrganizationSelector: some View {

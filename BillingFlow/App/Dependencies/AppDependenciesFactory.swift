@@ -9,6 +9,7 @@ enum AppDependenciesFactory {
         let organizationsRepository = FileOrganizationsRepository()
         let apiClient = APIClient(baseURL: URL(string: "https://api.bukinarena.site")!)
         let organizationSearchService = RemoteOrganizationSearchService(apiClient: apiClient)
+        let appRouteStore = AppRouteStore()
         let tabBarVisibilityStore = TabBarVisibilityStore()
         let documentEventsStore = DocumentEventsStore()
         let documentFactory = DocumentFactory()
@@ -24,6 +25,7 @@ enum AppDependenciesFactory {
             documentsRepository: documentsRepository,
             organizationsRepository: organizationsRepository,
             organizationSearchService: organizationSearchService,
+            appRouteStore: appRouteStore,
             tabBarVisibilityStore: tabBarVisibilityStore,
             documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,

@@ -59,16 +59,26 @@ actor FileOrganizationsRepository: OrganizationsRepositoryProtocol {
 
         if let index = organizations.firstIndex(where: { $0.matchingKey == incoming.matchingKey }) {
             var existing = organizations[index]
-            existing.party = party
-            existing.role = existing.role == role ? role : .mixed
+            existing.party = Self.updatedParty(
+                existing: existing,
+                incoming: party,
+                role: role
+            )
+            existing.role = Self.mergedRole(
+                existing: existing.role,
+                incoming: role
+            )
             existing.bankAccounts = Self.mergedBankAccounts(
                 existing: existing.normalizedBankAccounts,
                 incoming: incomingBankAccounts
             )
-            existing.defaultBankAccountID = existing.defaultBankAccountID ?? existing.bankAccounts.first?.id
+            existing.defaultBankAccountID = Self.defaultBankAccountID(
+                existingID: existing.defaultBankAccountID,
+                accounts: existing.bankAccounts
+            )
             existing.updatedAt = Date()
             organizations[index] = existing
-        } else {
+        } else if Self.shouldInsertOrganization(role: role) {
             organizations.append(incoming)
         }
 
@@ -105,6 +115,50 @@ private extension FileOrganizationsRepository {
         return account.isEmpty ? [] : [account]
     }
 
+    static func shouldInsertOrganization(role: Organization.Role) -> Bool {
+        switch role {
+        case .seller:
+            return false
+        case .buyer, .mixed:
+            return true
+        }
+    }
+
+    static func updatedParty(
+        existing: Organization,
+        incoming: DocumentParty,
+        role: Organization.Role
+    ) -> DocumentParty {
+        if role == .seller && (existing.role == .seller || existing.isDefault) {
+            return existing.party
+        }
+
+        return incoming
+    }
+
+    static func mergedRole(
+        existing: Organization.Role,
+        incoming: Organization.Role
+    ) -> Organization.Role {
+        if existing == incoming {
+            return existing
+        }
+
+        return .mixed
+    }
+
+    static func defaultBankAccountID(
+        existingID: UUID?,
+        accounts: [OrganizationBankAccount]
+    ) -> UUID? {
+        if let existingID,
+           accounts.contains(where: { $0.id == existingID }) {
+            return existingID
+        }
+
+        return accounts.first(where: \.isDefault)?.id ?? accounts.first?.id
+    }
+
     static func mergedBankAccounts(
         existing: [OrganizationBankAccount],
         incoming: [OrganizationBankAccount]
@@ -112,11 +166,37 @@ private extension FileOrganizationsRepository {
         var result = existing
 
         for account in incoming {
-            if result.contains(where: { $0.bankAccount == account.bankAccount && $0.bankCode == account.bankCode }) == false {
+            guard account.isEmpty == false else { continue }
+
+            if result.contains(where: { Self.isSameBankAccount($0, account) }) == false {
                 result.append(account)
             }
         }
 
         return result
+    }
+
+    static func isSameBankAccount(
+        _ lhs: OrganizationBankAccount,
+        _ rhs: OrganizationBankAccount
+    ) -> Bool {
+        let lhsAccount = lhs.bankAccount.filter(\.isNumber)
+        let rhsAccount = rhs.bankAccount.filter(\.isNumber)
+        let lhsCode = lhs.bankCode.filter(\.isNumber)
+        let rhsCode = rhs.bankCode.filter(\.isNumber)
+
+        if lhsAccount.isEmpty == false || rhsAccount.isEmpty == false {
+            return lhsAccount == rhsAccount && lhsCode == rhsCode
+        }
+
+        return lhs.bankName.normalizedOrganizationText == rhs.bankName.normalizedOrganizationText &&
+            lhsCode == rhsCode
+    }
+}
+
+private extension String {
+    var normalizedOrganizationText: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 }

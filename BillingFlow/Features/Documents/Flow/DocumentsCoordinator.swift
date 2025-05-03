@@ -12,6 +12,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
     private let documentsRepository: DocumentsRepositoryProtocol
     private let organizationsRepository: OrganizationsRepositoryProtocol
     private let organizationSearchService: OrganizationSearchServiceProtocol
+    private let appRouteStore: AppRouteStore
     private let tabBarVisibilityStore: TabBarVisibilityStore
     private let documentEventsStore: DocumentEventsStore
     private let documentFactory: DocumentFactory
@@ -31,6 +32,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
         organizationSearchService: OrganizationSearchServiceProtocol,
+        appRouteStore: AppRouteStore,
         tabBarVisibilityStore: TabBarVisibilityStore,
         documentEventsStore: DocumentEventsStore,
         documentFactory: DocumentFactory,
@@ -42,6 +44,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
         self.documentsRepository = documentsRepository
         self.organizationsRepository = organizationsRepository
         self.organizationSearchService = organizationSearchService
+        self.appRouteStore = appRouteStore
         self.tabBarVisibilityStore = tabBarVisibilityStore
         self.documentEventsStore = documentEventsStore
         self.documentFactory = documentFactory
@@ -103,6 +106,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
             documentsRepository: documentsRepository,
             organizationsRepository: organizationsRepository,
             organizationSearchService: organizationSearchService,
+            appRouteStore: appRouteStore,
             documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator
@@ -126,6 +130,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
             documentsRepository: documentsRepository,
             organizationsRepository: organizationsRepository,
             organizationSearchService: organizationSearchService,
+            appRouteStore: appRouteStore,
             documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator
@@ -149,6 +154,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
             documentsRepository: documentsRepository,
             organizationsRepository: organizationsRepository,
             organizationSearchService: organizationSearchService,
+            appRouteStore: appRouteStore,
             documentEventsStore: documentEventsStore,
             documentFactory: documentFactory,
             documentValidator: documentValidator

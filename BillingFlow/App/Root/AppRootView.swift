@@ -6,6 +6,7 @@ struct AppRootView: View {
 
     @StateObject private var appCoordinator: AppCoordinator
     @ObservedObject private var tabBarVisibilityStore: TabBarVisibilityStore
+    @ObservedObject private var appRouteStore: AppRouteStore
 
     // MARK: - Dependencies
 
@@ -16,6 +17,7 @@ struct AppRootView: View {
     init(dependencies: AppDependencies) {
           self.dependencies = dependencies
           self.tabBarVisibilityStore = dependencies.tabBarVisibilityStore
+          self.appRouteStore = dependencies.appRouteStore
           _appCoordinator = StateObject(
               wrappedValue: AppCoordinator(dependencies: dependencies)
           )
@@ -39,6 +41,10 @@ struct AppRootView: View {
             }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.86), value: tabBarVisibilityStore.isHidden)
+        .onChange(of: appRouteStore.organizationProfileRequestID) { requestID in
+            guard requestID != nil else { return }
+            appCoordinator.selectTab(.profile)
+        }
         .sheet(item: $appCoordinator.activeSheet) { sheet in
             //sheetView(sheet)
         }

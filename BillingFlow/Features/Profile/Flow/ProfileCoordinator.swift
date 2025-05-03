@@ -52,6 +52,11 @@ final class ProfileCoordinator: NSObject {
         navigationController.viewControllers = [controller]
         updateTabBarVisibility()
     }
+
+    func showOrganizationProfileSettings() {
+        navigationController.popToRootViewController(animated: false)
+        showOrganizationProfile()
+    }
 }
 
 // MARK: - Navigation
