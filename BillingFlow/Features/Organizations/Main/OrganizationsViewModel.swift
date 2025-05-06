@@ -9,6 +9,7 @@ final class OrganizationsViewModel: ObservableObject {
         let party: DocumentParty
         let roleTitle: String
         let documentCount: Int
+        let documents: [BusinessDocument]
 
         var name: String {
             party.displayName.isEmpty ? "Без названия" : party.displayName
@@ -43,19 +44,43 @@ final class OrganizationsViewModel: ObservableObject {
 
     private let organizationsRepository: OrganizationsRepositoryProtocol
     private let documentsRepository: DocumentsRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         organizationsRepository: OrganizationsRepositoryProtocol,
-        documentsRepository: DocumentsRepositoryProtocol
+        documentsRepository: DocumentsRepositoryProtocol,
+        documentEventsStore: DocumentEventsStore? = nil
     ) {
         self.organizationsRepository = organizationsRepository
         self.documentsRepository = documentsRepository
+        bindDocumentEvents(documentEventsStore)
+    }
+}
+
+// MARK: - Events
+
+private extension OrganizationsViewModel {
+    func bindDocumentEvents(_ documentEventsStore: DocumentEventsStore?) {
+        documentEventsStore?
+            .documentsDidChangePublisher
+            .sink { [weak self] in
+                self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
     }
 
-    // MARK: - Loading
+    func handleDocumentsDidChange() {
+        Task {
+            await load()
+        }
+    }
+}
 
+// MARK: - Loading
+
+extension OrganizationsViewModel {
     func load() async {
         guard isLoading == false else { return }
         isLoading = true
@@ -81,20 +106,32 @@ private extension OrganizationsViewModel {
         storedOrganizations: [Organization],
         documents: [BusinessDocument]
     ) -> [Item] {
-        var values: [String: (party: DocumentParty, role: Organization.Role, count: Int, updatedAt: Date)] = [:]
+        var values: [String: (
+            party: DocumentParty,
+            role: Organization.Role,
+            count: Int,
+            updatedAt: Date,
+            documents: [BusinessDocument]
+        )] = [:]
 
-        for organization in storedOrganizations where organization.party.isEmpty == false {
+        for organization in storedOrganizations where organization.party.isEmpty == false && organization.role != .seller {
             values[organization.matchingKey] = (
                 organization.party,
                 organization.role,
                 0,
-                organization.updatedAt
+                organization.updatedAt,
+                []
             )
         }
 
         for document in documents {
-            merge(party: document.seller, role: .seller, date: document.date, into: &values)
-            merge(party: document.buyer, role: .buyer, date: document.date, into: &values)
+            merge(
+                party: document.buyer,
+                role: .buyer,
+                date: document.date,
+                document: document,
+                into: &values
+            )
         }
 
         return values.map { key, value in
@@ -102,7 +139,8 @@ private extension OrganizationsViewModel {
                 id: key,
                 party: value.party,
                 roleTitle: value.role.title,
-                documentCount: value.count
+                documentCount: value.count,
+                documents: value.documents.sorted { $0.date > $1.date }
             )
         }
         .sorted { lhs, rhs in
@@ -117,7 +155,14 @@ private extension OrganizationsViewModel {
         party: DocumentParty,
         role: Organization.Role,
         date: Date,
-        into values: inout [String: (party: DocumentParty, role: Organization.Role, count: Int, updatedAt: Date)]
+        document: BusinessDocument,
+        into values: inout [String: (
+            party: DocumentParty,
+            role: Organization.Role,
+            count: Int,
+            updatedAt: Date,
+            documents: [BusinessDocument]
+        )]
     ) {
         guard party.isEmpty == false else { return }
 
@@ -127,9 +172,10 @@ private extension OrganizationsViewModel {
             existing.role = existing.role == role ? role : .mixed
             existing.count += 1
             existing.updatedAt = max(existing.updatedAt, date)
+            existing.documents.append(document)
             values[organization.matchingKey] = existing
         } else {
-            values[organization.matchingKey] = (party, role, 1, date)
+            values[organization.matchingKey] = (party, role, 1, date, [document])
         }
     }
 }

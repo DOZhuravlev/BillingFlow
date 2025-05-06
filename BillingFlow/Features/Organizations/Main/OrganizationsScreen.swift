@@ -5,11 +5,16 @@ struct OrganizationsScreen: View {
     // MARK: - State
 
     @StateObject private var viewModel: OrganizationsViewModel
+    private let onSelect: (OrganizationsViewModel.Item) -> Void
 
     // MARK: - Initialization
 
-    init(viewModel: OrganizationsViewModel) {
+    init(
+        viewModel: OrganizationsViewModel,
+        onSelect: @escaping (OrganizationsViewModel.Item) -> Void = { _ in }
+    ) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        self.onSelect = onSelect
     }
 
     // MARK: - Body
@@ -21,7 +26,6 @@ struct OrganizationsScreen: View {
             ScrollView {
                 VStack(spacing: AppSpacing.lg) {
                     headerSection
-                    primaryAction
                     organizationsSection
                 }
                 .padding(.horizontal, AppSpacing.md)
@@ -52,32 +56,15 @@ private extension OrganizationsScreen {
 
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Организации")
+            Text("Контрагенты")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Контрагенты, реквизиты и профили компаний")
+            Text("Покупатели, заказчики и компании для быстрых документов")
                 .font(AppFont.Text.caption)
                 .foregroundStyle(.white.opacity(0.72))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    var primaryAction: some View {
-        Button {
-
-        } label: {
-            Label("Добавить организацию", systemImage: "building.2.crop.circle.fill")
-                .font(AppFont.Control.button)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background {
-                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                        .fill(AppColor.Brand.primary)
-                }
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -112,9 +99,9 @@ private extension OrganizationsScreen {
 
     func organizationRow(_ organization: OrganizationsViewModel.Item) -> some View {
         Button {
-
+            onSelect(organization)
         } label: {
-            HStack(spacing: AppSpacing.md) {
+            HStack(alignment: .top, spacing: AppSpacing.md) {
                 Text(organization.initials)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
@@ -128,7 +115,8 @@ private extension OrganizationsScreen {
                     Text(organization.name)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(AppColor.Text.primary)
-                        .lineLimit(1)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("\(organization.roleTitle) · \(organization.taxIDText)")
                         .font(AppFont.Text.caption)
@@ -148,6 +136,7 @@ private extension OrganizationsScreen {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(AppColor.Text.secondary)
                 }
+                .padding(.top, 3)
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.sm)
@@ -165,11 +154,11 @@ private extension OrganizationsScreen {
     var emptyState: some View {
         MaterialCard {
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text("Организаций пока нет")
+                Text("Контрагентов пока нет")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(AppColor.Text.primary)
 
-                Text("После создания счета продавец и покупатель появятся здесь автоматически.")
+                Text("После создания документа покупатели и заказчики появятся здесь автоматически.")
                     .font(AppFont.Text.caption)
                     .foregroundStyle(AppColor.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
