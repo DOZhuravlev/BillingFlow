@@ -9,16 +9,16 @@ struct DocumentItem: Identifiable, Codable, Hashable, Sendable {
     var vatRate: Decimal?
 
     var subtotal: Decimal {
-        quantity * price
+        amount - vatAmount
     }
 
     var vatAmount: Decimal {
         guard let vatRate, vatRate > 0 else { return 0 }
-        return subtotal * vatRate / 100
+        return amount * vatRate / (100 + vatRate)
     }
 
     var amount: Decimal {
-        subtotal + vatAmount
+        quantity * price
     }
 
     var isValid: Bool {

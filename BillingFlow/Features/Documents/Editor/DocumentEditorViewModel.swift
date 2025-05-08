@@ -31,15 +31,15 @@ final class DocumentEditorViewModel: ObservableObject {
             case .start:
                 return "Старт"
             case .seller:
-                return "Продавец"
+                return "Реквизиты"
             case .buyer:
-                return "Покупатель"
+                return "Плательщик"
             case .details:
                 return "Реквизиты"
             case .items:
                 return "Позиции"
             case .notes:
-                return "Комментарий"
+                return "Оплата"
             case .review:
                 return "Проверка"
             }
@@ -68,6 +68,15 @@ final class DocumentEditorViewModel: ObservableObject {
             bankAccounts.first { $0.id == defaultBankAccountID }
                 ?? bankAccounts.first { $0.isDefault }
                 ?? bankAccounts.first
+        }
+    }
+
+    struct VATBreakdownLine: Identifiable {
+        let rate: Decimal
+        let amount: Decimal
+
+        var id: String {
+            "vat-\(rate)"
         }
     }
 
@@ -147,10 +156,6 @@ extension DocumentEditorViewModel {
 
     var totals: DocumentTotals {
         draft.totals
-    }
-
-    var selectedVATRate: Decimal? {
-        draft.items.first?.vatRate
     }
 
     var canMoveForward: Bool {
@@ -275,40 +280,40 @@ extension DocumentEditorViewModel {
     var sellerStepTitle: String {
         switch draft.type {
         case .invoice, .deliveryNote:
-            return "Кто выставляет документ"
+            return "Реквизиты вашей организации"
         case .act:
-            return "Кто выполняет работы"
+            return "Реквизиты исполнителя"
         }
     }
 
     var sellerStepSubtitle: String {
         switch draft.type {
         case .invoice, .deliveryNote:
-            return "Выберите свою организацию и банковский счет из профиля."
+            return "Эти данные попадут в документ и подскажут плательщику, куда отправить оплату."
         case .act:
-            return "Выберите исполнителя и банковский счет из профиля."
+            return "Выберите свою организацию и банковский счет для оплаты работ."
         }
     }
 
     var buyerStepTitle: String {
         switch draft.type {
         case .invoice:
-            return "Кому выставляем счет"
+            return "Кто оплачивает счет"
         case .act:
-            return "Кто принимает работы"
+            return "Кто оплачивает работы"
         case .deliveryNote:
-            return "Кому выставляем счет-фактуру"
+            return "Кто оплачивает счет-фактуру"
         }
     }
 
     var buyerStepSubtitle: String {
         switch draft.type {
         case .invoice:
-            return "Покупатель подтянется из ранее добавленных и использованных организаций."
+            return "Выберите плательщика из недавних контрагентов или найдите организацию по ИНН."
         case .act:
-            return "Заказчик подтянется из ранее добавленных и использованных организаций."
+            return "Укажите заказчика, который принимает работы и будет связан с документом."
         case .deliveryNote:
-            return "Получатель подтянется из ранее добавленных и использованных организаций."
+            return "Выберите плательщика или получателя для счет-фактуры."
         }
     }
 
@@ -326,11 +331,11 @@ extension DocumentEditorViewModel {
     var detailsStepSubtitle: String {
         switch draft.type {
         case .invoice:
-            return "Номер можно поправить вручную, дату и НДС применим ко всем позициям."
+            return "Укажите номер и дату документа."
         case .act:
             return "Номер и дату можно поправить вручную, позиции пойдут в акт выполненных работ."
         case .deliveryNote:
-            return "Номер, дату и НДС применим к позициям счет-фактуры."
+            return "Укажите номер и дату документа."
         }
     }
 
@@ -348,11 +353,9 @@ extension DocumentEditorViewModel {
     var dateFieldTitle: String {
         switch draft.type {
         case .invoice:
-            return "Дата счета"
-        case .act:
-            return "Дата акта"
-        case .deliveryNote:
-            return "Дата счет-фактуры"
+            return "Дата"
+        case .act, .deliveryNote:
+            return "Дата"
         }
     }
 
@@ -362,6 +365,21 @@ extension DocumentEditorViewModel {
             return true
         case .act:
             return false
+        }
+    }
+
+    var vatBreakdownLines: [VATBreakdownLine] {
+        let orderedRates: [Decimal] = [10, 20]
+
+        return orderedRates.compactMap { rate in
+            let amount = draft.items
+                .filter { $0.vatRate == rate }
+                .reduce(Decimal.zero) { partialResult, item in
+                    partialResult + item.vatAmount
+                }
+
+            guard amount > 0 else { return nil }
+            return VATBreakdownLine(rate: rate, amount: amount)
         }
     }
 
@@ -379,11 +397,11 @@ extension DocumentEditorViewModel {
     var itemsStepSubtitle: String {
         switch draft.type {
         case .invoice:
-            return "Строки выглядят как в счете: услуга, количество, цена и сумма."
+            return "Укажите наименование, количество и цену. НДС можно выбрать отдельно для каждой позиции."
         case .act:
             return "Укажите выполненные работы или услуги, количество, единицу и стоимость."
         case .deliveryNote:
-            return "Укажите товары или услуги, количество, цену и сумму для счет-фактуры."
+            return "Укажите товары или услуги. НДС можно выбрать отдельно для каждой позиции."
         }
     }
 
@@ -458,6 +476,11 @@ extension DocumentEditorViewModel {
     var selectedSellerOrganizationOption: OrganizationOption? {
         let currentOrganization = Organization(party: draft.seller, role: .seller)
         return sellerOrganizationOptions.first { $0.id == currentOrganization.matchingKey }
+    }
+
+    var selectedBuyerOrganizationOption: OrganizationOption? {
+        let currentOrganization = Organization(party: draft.buyer, role: .buyer)
+        return buyerOrganizationOptions.first { $0.id == currentOrganization.matchingKey }
     }
 
     func title(for step: Step) -> String {
@@ -651,6 +674,10 @@ extension DocumentEditorViewModel {
         updateDraft { $0.buyer = party }
     }
 
+    func resetBuyerSelection() {
+        updateDraft { $0.buyer = DocumentParty() }
+    }
+
     func updateSeller(_ seller: DocumentParty) {
         updateDraft { $0.seller = seller }
     }
@@ -717,12 +744,8 @@ extension DocumentEditorViewModel {
         }
     }
 
-    func updateVATRate(_ vatRate: Decimal?) {
-        updateDraft { draft in
-            for index in draft.items.indices {
-                draft.items[index].vatRate = vatRate
-            }
-        }
+    func updateItemVATRate(id: UUID, vatRate: Decimal?) {
+        updateItem(id: id) { $0.vatRate = vatRate }
     }
 }
 
@@ -737,18 +760,17 @@ extension DocumentEditorViewModel {
                     quantity: 1,
                     unit: Self.defaultUnit(for: draft.type),
                     price: 0,
-                    vatRate: draft.items.first?.vatRate
+                    vatRate: draft.items.last?.vatRate
                 )
             )
         }
     }
 
     func removeItem(id: UUID) {
-        let currentVATRate = selectedVATRate
         updateDraft { draft in
             draft.items.removeAll(where: { $0.id == id })
             if draft.items.isEmpty {
-                draft.items.append(DocumentItem(unit: Self.defaultUnit(for: draft.type), vatRate: currentVATRate))
+                draft.items.append(DocumentItem(unit: Self.defaultUnit(for: draft.type)))
             }
         }
     }

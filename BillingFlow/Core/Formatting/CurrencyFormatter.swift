@@ -10,7 +10,16 @@ enum CurrencyFormatter {
         _ amount: Decimal,
         currencyCode: String
     ) -> String {
-        "\(decimalText(amount)) \(currencyCode)"
+        "\(decimalText(amount)) \(currencySymbol(for: currencyCode))"
+    }
+
+    static func currencySymbol(for currencyCode: String) -> String {
+        switch currencyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+        case "RUB":
+            return "₽"
+        default:
+            return currencyCode
+        }
     }
 
     private static func decimalText(_ amount: Decimal) -> String {

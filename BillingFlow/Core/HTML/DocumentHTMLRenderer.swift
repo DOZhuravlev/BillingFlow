@@ -137,7 +137,7 @@ struct DocumentHTMLRenderer {
     }
 
     private func formattedAmount(_ value: Decimal, currencyCode: String) -> String {
-        "\(formattedDecimal(value)) \(currencyCode)"
+        formattedDecimal(value)
     }
 
     private func formattedDecimal(_ value: Decimal) -> String {

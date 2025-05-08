@@ -36,7 +36,9 @@ struct DocumentTotals: Codable, Hashable, Sendable {
         self.init(
             subtotal: subtotal,
             vatAmount: vatAmount,
-            total: subtotal + vatAmount,
+            total: items.reduce(Decimal.zero) { partialResult, item in
+                partialResult + item.amount
+            },
             itemCount: items.count
         )
     }

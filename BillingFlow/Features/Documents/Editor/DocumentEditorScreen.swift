@@ -5,6 +5,8 @@ struct DocumentEditorScreen: View {
     // MARK: - State
 
     @StateObject private var viewModel: DocumentEditorViewModel
+    @State private var isPaymentReminderDesignEnabled = false
+    @State private var paymentReminderDate = Date()
 
     // MARK: - Initialization
 
@@ -233,7 +235,7 @@ private extension DocumentEditorScreen {
         isSelected: Bool
     ) -> some View {
         HStack(spacing: AppSpacing.md) {
-            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+            Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
                 .frame(width: 34, height: 34)
@@ -280,17 +282,21 @@ private extension DocumentEditorScreen {
             if searchTarget == .seller {
                 sellerOrganizationBlock
             } else {
-                organizationMenu(
-                    title: "Выбрать из недавних контрагентов",
-                    onSelect: onSelect
-                )
                 organizationSearchCard(target: searchTarget)
-                partyFieldsCard(
-                    party: party,
-                    onUpdate: onUpdate
-                )
+
+                if party.isEmpty {
+                    buyerOrganizationSelectionCard(onSelect: onSelect)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                } else {
+                    selectedBuyerDetailsCard(
+                        party: party,
+                        onUpdate: onUpdate
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         }
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: party)
         .onAppear {
             if searchTarget != .seller {
                 viewModel.activateOrganizationSearch(target: searchTarget)
@@ -298,33 +304,128 @@ private extension DocumentEditorScreen {
         }
     }
 
-    func organizationMenu(
-        title: String,
+    func buyerOrganizationSelectionCard(
         onSelect: @escaping (DocumentParty) -> Void
     ) -> some View {
-        Menu {
-            ForEach(viewModel.buyerOrganizationOptions) { option in
-                Button {
-                    onSelect(option.party)
-                } label: {
-                    Text(option.party.displayName)
+        MaterialCard {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Контрагенты")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
+
+                    Text("Выберите организацию, с которой уже работали.")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+
+                if viewModel.buyerOrganizationOptions.isEmpty {
+                    HStack(alignment: .top, spacing: AppSpacing.sm) {
+                        Image(systemName: "building.2")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.secondary)
+
+                        Text("Контрагентов пока нет. Найдите организацию по ИНН или названию выше.")
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AppSpacing.md)
+                    .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.buyerOrganizationOptions) { option in
+                            Button {
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                                    onSelect(option.party)
+                                }
+                            } label: {
+                                buyerOrganizationRow(option)
+                            }
+                            .buttonStyle(.plain)
+
+                            if option.id != viewModel.buyerOrganizationOptions.last?.id {
+                                Rectangle()
+                                    .fill(Color.black.opacity(0.07))
+                                    .frame(height: 1)
+                                    .padding(.leading, AppSpacing.md)
+                            }
+                        }
+                    }
+                    .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
                 }
             }
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "building.2.fill")
-                Text(viewModel.buyerOrganizationOptions.isEmpty ? "Недавних контрагентов пока нет" : title)
-                Spacer()
-                Image(systemName: "chevron.down")
-            }
-            .font(AppFont.Control.button)
-            .foregroundStyle(.white)
-            .padding(.horizontal, AppSpacing.md)
-            .frame(height: 48)
-            .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .disabled(viewModel.buyerOrganizationOptions.isEmpty)
+    }
+
+    func buyerOrganizationRow(_ option: DocumentEditorViewModel.OrganizationOption) -> some View {
+        let isSelected = viewModel.selectedBuyerOrganizationOption?.id == option.id
+
+        return HStack(alignment: .top, spacing: AppSpacing.sm) {
+            Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .frame(width: 30, height: 30)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(option.party.displayName.isEmpty ? "Без названия" : option.party.displayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(option.subtitle)
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .lineLimit(2)
+
+                if option.party.address.isEmpty == false {
+                    Text(option.party.address)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: AppSpacing.sm)
+        }
+        .padding(AppSpacing.md)
+    }
+
+    func selectedBuyerDetailsCard(
+        party: DocumentParty,
+        onUpdate: @escaping (DocumentParty) -> Void
+    ) -> some View {
+        VStack(spacing: AppSpacing.sm) {
+            HStack {
+                Text("Реквизиты плательщика")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                        viewModel.resetBuyerSelection()
+                    }
+                } label: {
+                    Text("Сменить")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, AppSpacing.sm)
+                        .frame(height: 32)
+                        .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, AppSpacing.md)
+
+            partyFieldsCard(
+                party: party,
+                onUpdate: onUpdate
+            )
+        }
     }
 
     func partyFieldsCard(
@@ -542,7 +643,7 @@ private extension DocumentEditorScreen {
                 }
             }
         } label: {
-            selectorLabel(
+            compactSelectorLabel(
                 title: viewModel.sellerOrganizationOptions.isEmpty ? "Своих организаций пока нет" : "Сменить организацию",
                 systemImage: "building.2"
             )
@@ -567,10 +668,7 @@ private extension DocumentEditorScreen {
                 }
             }
         } label: {
-            selectorLabel(
-                title: sellerBankAccountTitle,
-                systemImage: "creditcard"
-            )
+            bankAccountSelectorLabel
         }
         .buttonStyle(.plain)
         .disabled(viewModel.selectedSellerBankAccounts.isEmpty)
@@ -587,7 +685,7 @@ private extension DocumentEditorScreen {
         return "Выбрать банк и счет"
     }
 
-    func selectorLabel(title: String, systemImage: String) -> some View {
+    func compactSelectorLabel(title: String, systemImage: String) -> some View {
         HStack(spacing: AppSpacing.sm) {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .semibold))
@@ -601,10 +699,37 @@ private extension DocumentEditorScreen {
             Image(systemName: "chevron.down")
                 .font(.system(size: 12, weight: .bold))
         }
-        .font(AppFont.Control.button)
+        .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(AppColor.Text.primary)
         .padding(.horizontal, AppSpacing.md)
         .frame(height: 44)
+        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+    }
+
+    var bankAccountSelectorLabel: some View {
+        HStack(alignment: .top, spacing: AppSpacing.sm) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.draft.seller.bankName.isEmpty ? "Выбрать банк" : viewModel.draft.seller.bankName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(viewModel.draft.seller.bankAccount.isEmpty ? "Расчетный счет не указан" : viewModel.draft.seller.bankAccount)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: AppSpacing.sm)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppColor.Text.secondary)
+                .padding(.top, 3)
+        }
+        .padding(AppSpacing.md)
         .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
     }
 
@@ -772,48 +897,57 @@ private extension DocumentEditorScreen {
                         viewModel.updateNumber($0)
                     }
 
-                    DatePicker(
-                        viewModel.dateFieldTitle,
-                        selection: Binding(
-                            get: { viewModel.draft.date },
-                            set: viewModel.updateDate
-                        ),
-                        displayedComponents: .date
-                    )
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(AppColor.Text.primary)
-
-                    partyTextField("Валюта", value: viewModel.draft.currencyCode) {
-                        viewModel.updateCurrencyCode($0)
-                    }
-
-                    if viewModel.showsVATSelector {
-                        vatSelector
-                    }
+                    dateSelectionRow
                 }
             }
         }
     }
 
-    var vatSelector: some View {
+    var dateSelectionRow: some View {
+        HStack(spacing: AppSpacing.md) {
+            Text(viewModel.dateFieldTitle)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+
+            Spacer()
+
+            DatePicker(
+                "",
+                selection: Binding(
+                    get: { viewModel.draft.date },
+                    set: viewModel.updateDate
+                ),
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .environment(\.locale, Locale(identifier: "ru_RU"))
+        }
+        .frame(minHeight: 44)
+    }
+
+    func itemVATSelector(for item: DocumentItem) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             Text("НДС")
                 .font(AppFont.Text.caption)
                 .foregroundStyle(AppColor.Text.secondary)
 
             HStack(spacing: AppSpacing.xs) {
-                vatButton(title: "Без НДС", rate: nil)
-                vatButton(title: "10%", rate: 10)
-                vatButton(title: "20%", rate: 20)
+                vatButton(title: "Без НДС", rate: nil, item: item)
+                vatButton(title: "НДС 10%", rate: 10, item: item)
+                vatButton(title: "НДС 20%", rate: 20, item: item)
             }
+            .padding(4)
+            .background(Color.black.opacity(0.04), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
         }
     }
 
-    func vatButton(title: String, rate: Decimal?) -> some View {
-        let isSelected = viewModel.selectedVATRate == rate
+    func vatButton(title: String, rate: Decimal?, item: DocumentItem) -> some View {
+        let displayedItem = currentItem(for: item)
+        let isSelected = displayedItem.vatRate == rate
 
         return Button {
-            viewModel.updateVATRate(rate)
+            viewModel.updateItemVATRate(id: item.id, vatRate: rate)
         } label: {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
@@ -844,12 +978,11 @@ private extension DocumentEditorScreen {
             Button {
                 viewModel.addItem()
             } label: {
-                Label("Добавить позицию", systemImage: "plus.circle.fill")
-                    .font(AppFont.Control.button)
+                Label(viewModel.draft.items.count > 1 ? "Добавить еще позицию" : "Еще одна позиция", systemImage: "plus.circle")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(AppColor.Brand.primary, in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+                    .frame(height: 44)
             }
             .buttonStyle(.plain)
 
@@ -927,7 +1060,7 @@ private extension DocumentEditorScreen {
                         }
 
                         calculationField(title: "Цена") {
-                            decimalField("", value: currentItem(for: item).price) {
+                            decimalField("", value: currentItem(for: item).price, hidesZero: true) {
                                 viewModel.updateItemPrice(id: item.id, price: $0)
                             }
                         }
@@ -935,11 +1068,7 @@ private extension DocumentEditorScreen {
                 }
 
                 if viewModel.showsVATSelector {
-                    HStack {
-                        Text(displayedItem.vatRate.map { "НДС \(decimalText($0))%" } ?? "Без НДС")
-                            .font(AppFont.Text.caption)
-                            .foregroundStyle(AppColor.Text.secondary)
-                    }
+                    itemVATSelector(for: item)
                 }
             }
         }
@@ -974,11 +1103,13 @@ private extension DocumentEditorScreen {
     func decimalField(
         _ title: String,
         value: Decimal,
+        hidesZero: Bool = false,
         onChange: @escaping (Decimal) -> Void
     ) -> some View {
         InvoiceDecimalField(
             title: title,
             value: value,
+            hidesZero: hidesZero,
             onChange: onChange
         )
     }
@@ -986,14 +1117,19 @@ private extension DocumentEditorScreen {
     var totalCard: some View {
         MaterialCard {
             VStack(spacing: AppSpacing.sm) {
-                amountLine(title: "Подытог", amount: viewModel.totals.subtotal)
                 if viewModel.showsVATSelector {
-                    amountLine(title: "НДС", amount: viewModel.totals.vatAmount)
+                    ForEach(viewModel.vatBreakdownLines) { line in
+                        amountLine(title: vatBreakdownTitle(for: line.rate), amount: line.amount)
+                    }
                 }
                 Divider()
-                amountLine(title: "Итого", amount: viewModel.totals.total, isTotal: true)
+                amountLine(title: "Сумма позиций", amount: viewModel.totals.total, isTotal: true)
             }
         }
+    }
+
+    func vatBreakdownTitle(for rate: Decimal) -> String {
+        "НДС \(decimalText(rate))%"
     }
 
     func amountLine(title: String, amount: Decimal, isTotal: Bool = false) -> some View {
@@ -1013,21 +1149,121 @@ private extension DocumentEditorScreen {
     var notesStep: some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(
-                title: "Комментарий",
-                subtitle: "Добавьте назначение платежа, срок оплаты или внутреннюю заметку."
+                title: "Оплата и заметка",
+                subtitle: "Добавьте внутреннюю заметку и настройте будущие напоминания об оплате."
             )
 
+            paymentReminderDesignCard
+
             MaterialCard {
-                TextEditor(text: Binding(
-                    get: { viewModel.draft.notes },
-                    set: viewModel.updateNotes
-                ))
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(AppColor.Text.primary)
-                .frame(minHeight: 180)
-                .scrollContentBackground(.hidden)
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Внутренняя заметка")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.primary)
+
+                        Text("Эта заметка нужна только вам и не попадет в документ.")
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    TextEditor(text: Binding(
+                        get: { viewModel.draft.notes },
+                        set: viewModel.updateNotes
+                    ))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .frame(minHeight: 150)
+                    .scrollContentBackground(.hidden)
+                    .padding(AppSpacing.sm)
+                    .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                }
             }
         }
+    }
+
+    var paymentReminderDesignCard: some View {
+        MaterialCard {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                HStack(alignment: .top, spacing: AppSpacing.md) {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppColor.Brand.primary)
+                        .frame(width: 42, height: 42)
+                        .background(AppColor.Brand.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Напомнить об оплате")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColor.Text.primary)
+
+                        Text("Выберите, когда отправить пуш-напоминание об оплате.")
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: AppSpacing.sm)
+
+                    Toggle("", isOn: $isPaymentReminderDesignEnabled)
+                        .labelsHidden()
+                        .tint(AppColor.Brand.primary)
+                }
+
+                if isPaymentReminderDesignEnabled {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        Text("Дата и время напоминания")
+                            .font(AppFont.Text.caption)
+                            .foregroundStyle(AppColor.Text.secondary)
+
+                        HStack(spacing: AppSpacing.sm) {
+                            reminderPickerBox(
+                                title: "Время",
+                                systemImage: "clock",
+                                components: .hourAndMinute
+                            )
+
+                            reminderPickerBox(
+                                title: "Дата",
+                                systemImage: "calendar",
+                                components: .date
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func reminderPickerBox(
+        title: String,
+        systemImage: String,
+        components: DatePickerComponents
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppColor.Brand.primary)
+
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.secondary)
+            }
+
+            DatePicker(
+                "",
+                selection: $paymentReminderDate,
+                displayedComponents: components
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(AppSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
     }
 
     var reviewStep: some View {
@@ -1191,6 +1427,7 @@ private extension DocumentEditorScreen {
 private struct InvoiceDecimalField: View {
     let title: String
     let value: Decimal
+    let hidesZero: Bool
     let onChange: (Decimal) -> Void
 
     @State private var text: String
@@ -1199,12 +1436,14 @@ private struct InvoiceDecimalField: View {
     init(
         title: String,
         value: Decimal,
+        hidesZero: Bool = false,
         onChange: @escaping (Decimal) -> Void
     ) {
         self.title = title
         self.value = value
+        self.hidesZero = hidesZero
         self.onChange = onChange
-        _text = State(initialValue: Self.displayText(for: value))
+        _text = State(initialValue: Self.displayText(for: value, hidesZero: hidesZero))
     }
 
     var body: some View {
@@ -1221,18 +1460,22 @@ private struct InvoiceDecimalField: View {
             }
             .onChange(of: value) { newValue in
                 guard isFocused == false else { return }
-                text = Self.displayText(for: newValue)
+                text = Self.displayText(for: newValue, hidesZero: hidesZero)
             }
             .onChange(of: isFocused) { newValue in
                 if newValue == false {
-                    text = Self.displayText(for: value)
+                    text = Self.displayText(for: value, hidesZero: hidesZero)
                 }
             }
     }
 }
 
 private extension InvoiceDecimalField {
-    static func displayText(for value: Decimal) -> String {
+    static func displayText(for value: Decimal, hidesZero: Bool) -> String {
+        if hidesZero && value == 0 {
+            return ""
+        }
+
         let number = NSDecimalNumber(decimal: value)
         return DocumentHTMLRenderer.amountFormatter.string(from: number) ?? number.stringValue
     }
