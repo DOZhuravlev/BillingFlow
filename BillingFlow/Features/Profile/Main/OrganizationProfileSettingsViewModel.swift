@@ -6,6 +6,7 @@ final class OrganizationProfileSettingsViewModel: ObservableObject {
 
     enum PartyField {
         case displayName
+        case fullName
         case taxID
         case registrationNumber
         case address
@@ -169,6 +170,8 @@ extension OrganizationProfileSettingsViewModel {
         switch field {
         case .displayName:
             draft.party.displayName = value
+        case .fullName:
+            draft.party.fullName = value
         case .taxID:
             draft.party.taxID = value
         case .registrationNumber:

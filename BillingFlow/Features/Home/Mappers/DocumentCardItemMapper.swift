@@ -8,7 +8,7 @@ struct DocumentCardItemMapper {
         DocumentCardItem(
             id: document.id,
             iconName: iconName(for: document.type),
-            title: documentTitle(for: document),
+            title: counterpartyName(for: document),
             subtitle: documentSubtitle(for: document),
             amount: CurrencyFormatter.amountText(
                 document.totals.total,
@@ -44,13 +44,14 @@ struct DocumentCardItemMapper {
 
     private func documentSubtitle(for document: BusinessDocument) -> String {
         let dateText = AppDateFormatter.documentDateText(document.date)
+
+        return "\(documentTitle(for: document)) от \(dateText)"
+    }
+
+    private func counterpartyName(for document: BusinessDocument) -> String {
         let buyerName = document.buyer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard buyerName.isEmpty == false else {
-            return dateText
-        }
-
-        return "\(buyerName) • \(dateText)"
+        guard buyerName.isEmpty == false else { return "Контрагент не указан" }
+        return buyerName
     }
 
     private func statusText(for status: DocumentStatus) -> String {

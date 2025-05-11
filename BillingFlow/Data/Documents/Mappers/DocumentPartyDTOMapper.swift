@@ -5,6 +5,8 @@ struct DocumentPartyDTOMapper {
     func map(_ dto: DocumentPartyDTO) -> DocumentParty {
         DocumentParty(
             displayName: cleaned(dto.displayName),
+            fullName: cleaned(dto.fullName),
+            shortName: cleaned(dto.shortName),
             taxID: cleaned(dto.taxID),
             registrationNumber: cleaned(dto.registrationNumber),
             address: cleaned(dto.address),

@@ -74,6 +74,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
             navigationTitle: "Документы"
         )
 
+        navigationController.setNavigationBarHidden(true, animated: false)
         navigationController.viewControllers = [controller]
     }
 

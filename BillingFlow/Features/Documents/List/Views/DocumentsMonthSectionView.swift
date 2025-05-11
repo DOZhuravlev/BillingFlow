@@ -46,8 +46,8 @@ struct DocumentsMonthSectionView: View {
     private func documentCard(for item: DocumentsListItem) -> some View {
         BillGroupCard(
             iconName: item.iconName,
-            title: item.title,
-            date: "\(item.counterpartyName) • \(item.dateText)",
+            title: item.counterpartyName,
+            date: "\(item.title) от \(item.dateText)",
             amount: item.amountText,
             statusTitle: "Статус",
             statusAmount: item.statusText,

@@ -6,26 +6,42 @@ struct DocumentDetailScreen: View {
 
     @ObservedObject var viewModel: DocumentDetailViewModel
 
+    // MARK: - State
+
+    @State private var scrollOffset: CGFloat = .zero
+
     // MARK: - Body
 
     var body: some View {
         ZStack {
             backgroundLayer
 
-            ScrollView {
-                VStack(spacing: AppSpacing.md) {
-                    heroSection
-                    actionsSection
-                    overviewSection
-                    lineItemsSection
-                    requisitesSection
-                    notesSection
+            VStack(spacing: 0) {
+                navigationHeader
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.top, AppSpacing.sm)
+                    .padding(.bottom, AppSpacing.sm)
+                    .zIndex(1)
+
+                ScrollView {
+                    ScrollOffsetObserver { offset in
+                        scrollOffset = max(offset.y, 0)
+                    }
+                    .frame(width: 0, height: 0)
+
+                    VStack(spacing: AppSpacing.md) {
+                        heroSection
+                        actionsSection
+                        lineItemsSection
+                        requisitesSection
+                        notesSection
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.top, AppSpacing.sm)
+                    .padding(.bottom, AppLayout.floatingTabBarBottomInset)
                 }
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.top, AppSpacing.md)
-                .padding(.bottom, AppLayout.floatingTabBarBottomInset)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
         }
     }
 }
@@ -44,7 +60,7 @@ private extension DocumentDetailScreen {
 
 private extension DocumentDetailScreen {
 
-    var heroSection: some View {
+    var navigationHeader: some View {
         HStack(alignment: .top, spacing: AppSpacing.md) {
             Button(action: viewModel.didTapBack) {
                 Image(systemName: "chevron.left")
@@ -59,27 +75,84 @@ private extension DocumentDetailScreen {
             }
             .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.documentTitle)
-                    .font(.system(size: 24, weight: .bold))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(nonEmpty(viewModel.document.buyer.displayName, fallback: "Контрагент не указан"))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
-                    .lineLimit(2)
+                    .lineLimit(3)
 
-                Text(viewModel.documentSubtitle)
-                    .font(AppFont.Text.caption)
-                    .foregroundStyle(.white.opacity(0.72))
-
-                Text(viewModel.totalText)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                navigationSubtitle
             }
+            .padding(.top, 1)
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeInOut(duration: 0.18), value: headerCollapseProgress)
+    }
+
+    @ViewBuilder
+    var navigationSubtitle: some View {
+        let buyerSubtitle = partySubtitle(for: viewModel.document.buyer)
+
+        ZStack(alignment: .leading) {
+            if buyerSubtitle.isEmpty == false {
+                Text(buyerSubtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .lineLimit(3)
+                    .opacity(1 - headerCollapseProgress)
+            }
+
+            Text(viewModel.totalText)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.84))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .opacity(headerCollapseProgress)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: buyerSubtitle.isEmpty ? 18 : 34, alignment: .topLeading)
+    }
+
+    var heroSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(viewModel.documentTitle)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.86))
+                        .lineLimit(2)
+
+                    Text(viewModel.documentSubtitle)
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(.white.opacity(0.64))
+                }
+                .padding(.top, 6)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("К оплате")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.64))
+
+                    Text(viewModel.totalText)
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+                .padding(.top, 10)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)
+        .opacity(1 - headerCollapseProgress)
+        .animation(.easeInOut(duration: 0.18), value: headerCollapseProgress)
+    }
+
+    var headerCollapseProgress: CGFloat {
+        let distance: CGFloat = 80
+        return min(max(scrollOffset / distance, 0), 1)
     }
 }
 
@@ -100,7 +173,7 @@ private extension DocumentDetailScreen {
 
             HStack(spacing: AppSpacing.sm) {
                 actionButton(
-                    title: "Дублировать",
+                    title: "Скопировать",
                     systemImage: "doc.on.doc",
                     style: .secondary,
                     action: viewModel.didTapDuplicate
@@ -114,57 +187,6 @@ private extension DocumentDetailScreen {
                 )
             }
         }
-    }
-}
-
-// MARK: - Overview
-
-private extension DocumentDetailScreen {
-
-    var overviewSection: some View {
-        MaterialCard(cornerRadius: AppRadius.lg) {
-            VStack(alignment: .leading, spacing: AppSpacing.md) {
-                sectionTitle("Детали счёта", iconName: "doc.text.magnifyingglass")
-
-                VStack(spacing: 0) {
-                    overviewRow("Покупатель", viewModel.document.buyer.displayName, fallback: "Не указан")
-                    divider
-                    overviewRow("Продавец", viewModel.document.seller.displayName, fallback: "Не указан")
-                    divider
-                    overviewRow("Дата", AppDateFormatter.documentDateText(viewModel.document.date))
-                    divider
-                    overviewRow("Тип", viewModel.document.type.displayName)
-                    divider
-                    overviewRow("Позиций", viewModel.itemCountText)
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                        .fill(.white.opacity(0.36))
-                }
-            }
-        }
-    }
-
-    func overviewRow(
-        _ title: String,
-        _ value: String,
-        fallback: String = "Не указано"
-    ) -> some View {
-        infoRow(
-            title,
-            value,
-            fallback: fallback,
-            valueWeight: .semibold
-        )
-        .padding(.horizontal, AppSpacing.md)
-        .padding(.vertical, 11)
-    }
-
-    var divider: some View {
-        Rectangle()
-            .fill(.white.opacity(0.34))
-            .frame(height: 1)
-            .padding(.leading, AppSpacing.md)
     }
 }
 
@@ -184,7 +206,7 @@ private extension DocumentDetailScreen {
     }
 
     var lineItemsTable: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal, showsIndicators: true) {
             VStack(spacing: 0) {
                 lineItemsHeader
 
@@ -299,7 +321,17 @@ private extension DocumentDetailScreen {
     var totalsBlock: some View {
         VStack(spacing: 10) {
             VStack(spacing: 10) {
-                infoRow("Подытог", viewModel.subtotalText)
+                if viewModel.vatBreakdownLines.isEmpty {
+                    infoRow("НДС", "Без НДС")
+                } else {
+                    ForEach(viewModel.vatBreakdownLines) { line in
+                        infoRow(
+                            "в т.ч. НДС \(decimalText(line.rate))%",
+                            CurrencyFormatter.amountText(line.amount, currencyCode: viewModel.document.currencyCode)
+                        )
+                    }
+                }
+
                 infoRow("Всего", viewModel.totalText, valueWeight: .bold)
             }
             .padding(AppSpacing.md)
@@ -318,27 +350,17 @@ private extension DocumentDetailScreen {
     var requisitesSection: some View {
         MaterialCard(cornerRadius: AppRadius.lg) {
             VStack(alignment: .leading, spacing: AppSpacing.md) {
-                sectionTitle("Реквизиты", iconName: "building.columns.fill")
+                sectionTitle("Реквизиты для оплаты", iconName: "building.columns.fill")
 
-                VStack(spacing: AppSpacing.md) {
-                    partySummaryCard(title: "Продавец", party: viewModel.document.seller)
-                    partySummaryCard(title: "Покупатель", party: viewModel.document.buyer)
-                }
+                partySummaryCard(party: viewModel.document.seller)
             }
         }
     }
 
-    func partySummaryCard(title: String, party: DocumentParty) -> some View {
+    func partySummaryCard(party: DocumentParty) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(AppColor.Text.primary)
-
-            Text(nonEmpty(party.displayName, fallback: "Не указано"))
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppColor.Text.primary)
-
             VStack(spacing: 8) {
+                compactInfoRow("Полное", party.fullName)
                 compactInfoRow("ИНН", party.taxID)
                 compactInfoRow("Адрес", party.address)
                 compactInfoRow("Банк", party.bankName)
@@ -455,6 +477,15 @@ private extension DocumentDetailScreen {
     func nonEmpty(_ value: String, fallback: String) -> String {
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? fallback : trimmedValue
+    }
+
+    func partySubtitle(for party: DocumentParty) -> String {
+        [
+            party.taxID.isEmpty ? nil : "ИНН \(party.taxID)",
+            party.address.isEmpty ? nil : party.address
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
     }
 }
 

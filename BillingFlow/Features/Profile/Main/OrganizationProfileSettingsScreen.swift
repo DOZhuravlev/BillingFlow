@@ -285,10 +285,18 @@ private extension OrganizationProfileSettingsScreen {
                     } label: {
                         HStack(spacing: AppSpacing.sm) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(suggestion.shortName.isEmpty ? suggestion.name : suggestion.shortName)
+                                Text(suggestion.preferredDisplayName)
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(AppColor.Text.primary)
                                     .lineLimit(1)
+
+                                if suggestion.shortName.isEmpty == false,
+                                   suggestion.name != suggestion.shortName {
+                                    Text(suggestion.name)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(AppColor.Text.secondary)
+                                        .lineLimit(1)
+                                }
 
                                 Text([suggestion.inn.isEmpty ? nil : "ИНН \(suggestion.inn)", suggestion.address.isEmpty ? nil : suggestion.address].compactMap { $0 }.joined(separator: " · "))
                                     .font(AppFont.Text.caption)
@@ -337,6 +345,10 @@ private extension OrganizationProfileSettingsScreen {
             VStack(spacing: AppSpacing.md) {
                 formField("Название", value: viewModel.draft.party.displayName) {
                     viewModel.updatePartyField(.displayName, value: $0)
+                }
+
+                formField("Полное наименование", value: viewModel.draft.party.fullName) {
+                    viewModel.updatePartyField(.fullName, value: $0)
                 }
 
                 HStack(spacing: AppSpacing.sm) {

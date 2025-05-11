@@ -478,6 +478,12 @@ extension DocumentEditorViewModel {
         return sellerOrganizationOptions.first { $0.id == currentOrganization.matchingKey }
     }
 
+    func isSelectedSellerBankAccount(_ account: OrganizationBankAccount) -> Bool {
+        draft.seller.bankName == account.bankName &&
+        draft.seller.bankAccount == account.bankAccount &&
+        draft.seller.bankCode == account.bankCode
+    }
+
     var selectedBuyerOrganizationOption: OrganizationOption? {
         let currentOrganization = Organization(party: draft.buyer, role: .buyer)
         return buyerOrganizationOptions.first { $0.id == currentOrganization.matchingKey }

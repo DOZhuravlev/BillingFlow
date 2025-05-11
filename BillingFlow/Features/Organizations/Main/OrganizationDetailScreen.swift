@@ -105,6 +105,8 @@ private extension OrganizationDetailScreen {
                     divider
                     detailRow(title: "Название", value: viewModel.item.party.displayName)
                     divider
+                    detailRow(title: "Полное наименование", value: viewModel.item.party.fullName)
+                    divider
                     detailRow(title: "ИНН", value: viewModel.item.party.taxID)
                     divider
                     detailRow(title: "КПП / ОГРН", value: viewModel.item.party.registrationNumber)

@@ -2,6 +2,8 @@ import Foundation
 
 struct DocumentPartyDTO: Decodable, Sendable {
     let displayName: String
+    let fullName: String?
+    let shortName: String?
     let taxID: String?
     let registrationNumber: String?
     let address: String?
@@ -14,6 +16,8 @@ struct DocumentPartyDTO: Decodable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
+        case fullName = "full_name"
+        case shortName = "short_name"
         case taxID = "tax_id"
         case registrationNumber = "registration_number"
         case address

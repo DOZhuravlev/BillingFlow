@@ -18,12 +18,18 @@ struct OrganizationSuggestion: Identifiable, Hashable, Sendable {
 
     var party: DocumentParty {
         DocumentParty(
-            displayName: name,
+            displayName: preferredDisplayName,
+            fullName: name,
+            shortName: shortName,
             taxID: inn,
             registrationNumber: registrationText,
             address: address,
             contactName: managerName
         )
+    }
+
+    var preferredDisplayName: String {
+        shortName.isEmpty ? name : shortName
     }
 
     private var registrationText: String {

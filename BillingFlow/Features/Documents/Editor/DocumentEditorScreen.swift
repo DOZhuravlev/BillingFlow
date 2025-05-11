@@ -7,6 +7,7 @@ struct DocumentEditorScreen: View {
     @StateObject private var viewModel: DocumentEditorViewModel
     @State private var isPaymentReminderDesignEnabled = false
     @State private var paymentReminderDate = Date()
+    @State private var isSellerDetailsExpanded = false
 
     // MARK: - Initialization
 
@@ -439,6 +440,11 @@ private extension DocumentEditorScreen {
                     next.displayName = value
                     onUpdate(next)
                 }
+                partyTextField("Полное наименование", value: party.fullName) { value in
+                    var next = party
+                    next.fullName = value
+                    onUpdate(next)
+                }
                 partyTextField("ИНН", value: party.taxID) { value in
                     var next = party
                     next.taxID = value
@@ -507,7 +513,7 @@ private extension DocumentEditorScreen {
 
                     if viewModel.draft.seller.isEmpty == false {
                         sellerBankAccountSelector
-                        sellerReadOnlyDetails
+                        sellerDetailsDisclosure
                     } else {
                         sellerEmptyState
                     }
@@ -523,12 +529,8 @@ private extension DocumentEditorScreen {
             parts.append("ИНН \(viewModel.draft.seller.taxID)")
         }
 
-        if viewModel.draft.seller.bankName.isEmpty == false {
-            parts.append(viewModel.draft.seller.bankName)
-        }
-
-        if viewModel.draft.seller.bankAccount.isEmpty == false {
-            parts.append(viewModel.draft.seller.bankAccount)
+        if viewModel.draft.seller.address.isEmpty == false {
+            parts.append(viewModel.draft.seller.address)
         }
 
         return parts.isEmpty ? "Добавьте свою организацию в профиле." : parts.joined(separator: " · ")
@@ -539,6 +541,11 @@ private extension DocumentEditorScreen {
             readOnlyDetailRow(
                 title: "Название",
                 value: viewModel.draft.seller.displayName
+            )
+            readOnlyDivider
+            readOnlyDetailRow(
+                title: "Полное",
+                value: viewModel.draft.seller.fullName
             )
             readOnlyDivider
             readOnlyDetailRow(
@@ -654,35 +661,122 @@ private extension DocumentEditorScreen {
     }
 
     var sellerBankAccountSelector: some View {
-        Menu {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Счет для оплаты")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+
+                Text("Выберите расчетный счет, который попадет в документ.")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+            }
+
             if viewModel.selectedSellerBankAccounts.isEmpty {
-                Button("Счетов пока нет") { }
-                    .disabled(true)
+                Text("У этой организации пока нет банковских счетов.")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AppSpacing.md)
+                    .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
             } else {
-                ForEach(viewModel.selectedSellerBankAccounts) { account in
-                    Button {
-                        viewModel.selectSellerBankAccount(account)
-                    } label: {
-                        Text("\(account.displayTitle) · \(account.displaySubtitle)")
+                VStack(spacing: 0) {
+                    ForEach(viewModel.selectedSellerBankAccounts) { account in
+                        Button {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                viewModel.selectSellerBankAccount(account)
+                            }
+                        } label: {
+                            sellerBankAccountRow(account)
+                        }
+                        .buttonStyle(.plain)
+
+                        if account.id != viewModel.selectedSellerBankAccounts.last?.id {
+                            Rectangle()
+                                .fill(Color.black.opacity(0.07))
+                                .frame(height: 1)
+                                .padding(.leading, AppSpacing.md)
+                        }
                     }
                 }
+                .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
             }
-        } label: {
-            bankAccountSelectorLabel
         }
-        .buttonStyle(.plain)
-        .disabled(viewModel.selectedSellerBankAccounts.isEmpty)
-        .opacity(viewModel.selectedSellerBankAccounts.isEmpty ? 0.55 : 1)
     }
 
-    var sellerBankAccountTitle: String {
-        if viewModel.draft.seller.bankName.isEmpty == false || viewModel.draft.seller.bankAccount.isEmpty == false {
-            let bank = viewModel.draft.seller.bankName.isEmpty ? "Банк" : viewModel.draft.seller.bankName
-            let account = viewModel.draft.seller.bankAccount.isEmpty ? "счет не указан" : viewModel.draft.seller.bankAccount
-            return "\(bank) · \(account)"
-        }
+    func sellerBankAccountRow(_ account: OrganizationBankAccount) -> some View {
+        let isSelected = viewModel.isSelectedSellerBankAccount(account)
 
-        return "Выбрать банк и счет"
+        return HStack(alignment: .top, spacing: AppSpacing.sm) {
+            Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .frame(width: 30, height: 30)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(account.displayTitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .lineLimit(2)
+
+                    if account.isDefault {
+                        Text("Основной")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppColor.Brand.primary)
+                            .padding(.horizontal, 7)
+                            .frame(height: 22)
+                            .background(AppColor.Brand.primary.opacity(0.10), in: Capsule())
+                    }
+                }
+
+                Text(account.bankAccount.isEmpty ? "Расчетный счет не указан" : account.bankAccount)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                if account.bankCode.isEmpty == false {
+                    Text("БИК \(account.bankCode)")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+            }
+
+            Spacer(minLength: AppSpacing.sm)
+        }
+        .padding(AppSpacing.md)
+    }
+
+    var sellerDetailsDisclosure: some View {
+        VStack(spacing: AppSpacing.sm) {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    isSellerDetailsExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Text(isSellerDetailsExpanded ? "Скрыть полные реквизиты" : "Показать полные реквизиты")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
+
+                    Spacer()
+
+                    Image(systemName: isSellerDetailsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .frame(height: 44)
+                .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            if isSellerDetailsExpanded {
+                sellerReadOnlyDetails
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
     }
 
     func compactSelectorLabel(title: String, systemImage: String) -> some View {
@@ -703,33 +797,6 @@ private extension DocumentEditorScreen {
         .foregroundStyle(AppColor.Text.primary)
         .padding(.horizontal, AppSpacing.md)
         .frame(height: 44)
-        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
-    }
-
-    var bankAccountSelectorLabel: some View {
-        HStack(alignment: .top, spacing: AppSpacing.sm) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.draft.seller.bankName.isEmpty ? "Выбрать банк" : viewModel.draft.seller.bankName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColor.Text.primary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(viewModel.draft.seller.bankAccount.isEmpty ? "Расчетный счет не указан" : viewModel.draft.seller.bankAccount)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(AppColor.Text.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: AppSpacing.sm)
-
-            Image(systemName: "chevron.down")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(AppColor.Text.secondary)
-                .padding(.top, 3)
-        }
-        .padding(AppSpacing.md)
         .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
     }
 
@@ -823,10 +890,18 @@ private extension DocumentEditorScreen {
                 .background(AppColor.Brand.primary.opacity(0.10), in: Circle())
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(suggestion.shortName.isEmpty ? suggestion.name : suggestion.shortName)
+                Text(suggestion.preferredDisplayName)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppColor.Text.primary)
                     .lineLimit(2)
+
+                if suggestion.shortName.isEmpty == false,
+                   suggestion.name != suggestion.shortName {
+                    Text(suggestion.name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .lineLimit(2)
+                }
 
                 Text(organizationSuggestionSubtitle(suggestion))
                     .font(AppFont.Text.caption)

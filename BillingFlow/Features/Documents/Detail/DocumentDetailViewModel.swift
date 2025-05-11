@@ -26,6 +26,15 @@ final class DocumentDetailViewModel: ObservableObject {
 // MARK: - Display State
 
 extension DocumentDetailViewModel {
+    struct VATBreakdownLine: Identifiable {
+        let rate: Decimal
+        let amount: Decimal
+
+        var id: String {
+            "vat-\(rate)"
+        }
+    }
+
     var documentTitle: String {
         let number = document.number.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -37,7 +46,7 @@ extension DocumentDetailViewModel {
     }
 
     var documentSubtitle: String {
-        "\(document.type.displayName) от \(AppDateFormatter.documentDateText(document.date))"
+        "от \(AppDateFormatter.documentDateText(document.date))"
     }
 
     var totalText: String {
@@ -52,6 +61,21 @@ extension DocumentDetailViewModel {
             document.totals.subtotal,
             currencyCode: document.currencyCode
         )
+    }
+
+    var vatBreakdownLines: [VATBreakdownLine] {
+        let orderedRates: [Decimal] = [10, 20]
+
+        return orderedRates.compactMap { rate in
+            let amount = document.items
+                .filter { $0.vatRate == rate }
+                .reduce(Decimal.zero) { partialResult, item in
+                    partialResult + item.vatAmount
+                }
+
+            guard amount > 0 else { return nil }
+            return VATBreakdownLine(rate: rate, amount: amount)
+        }
     }
 
     var itemCountText: String {
