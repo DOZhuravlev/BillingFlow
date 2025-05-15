@@ -5,6 +5,7 @@ protocol DocumentsCoordinatorProtocol: AnyObject {
     func start()
     func showDetail(document: BusinessDocument)
     func showCreateDocument(type: DocumentType)
+    func showCreateDocument(type: DocumentType, buyer: DocumentParty)
     func showDuplicateDocument(document: BusinessDocument)
     func showEditDocument(document: BusinessDocument)
     func showPreview(document: BusinessDocument)
@@ -20,6 +21,10 @@ protocol DocumentsCoordinatorProtocol: AnyObject {
 }
 
 extension DocumentsCoordinatorProtocol {
+    func showCreateDocument(type: DocumentType, buyer: DocumentParty) {
+        showCreateDocument(type: type)
+    }
+
     func showPreview(
         document: BusinessDocument,
         saveAction: @escaping () async -> Void,

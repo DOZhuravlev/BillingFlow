@@ -11,6 +11,7 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
     var notes: String
     var currencyCode: String
     var status: DocumentStatus
+    var paidAt: Date?
 
     var totals: DocumentTotals {
         DocumentTotals(items: items)
@@ -34,7 +35,8 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
         items: [DocumentItem] = [],
         notes: String = "",
         currencyCode: String = "RUB",
-        status: DocumentStatus = .draft
+        status: DocumentStatus = .draft,
+        paidAt: Date? = nil
     ) {
         self.id = id
         self.type = type
@@ -46,5 +48,6 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
         self.notes = notes
         self.currencyCode = currencyCode
         self.status = status
+        self.paidAt = paidAt
     }
 }

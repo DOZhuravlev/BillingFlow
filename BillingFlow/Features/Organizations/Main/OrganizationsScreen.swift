@@ -102,15 +102,6 @@ private extension OrganizationsScreen {
             onSelect(organization)
         } label: {
             HStack(alignment: .top, spacing: AppSpacing.md) {
-                Text(organization.initials)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background {
-                        RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
-                            .fill(.black.opacity(0.62))
-                    }
-
                 VStack(alignment: .leading, spacing: 5) {
                     Text(organization.name)
                         .font(.system(size: 15, weight: .semibold))
@@ -118,7 +109,7 @@ private extension OrganizationsScreen {
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text("\(organization.roleTitle) · \(organization.taxIDText)")
+                    Text(organization.taxIDText)
                         .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
                         .lineLimit(1)
@@ -148,7 +139,7 @@ private extension OrganizationsScreen {
         Rectangle()
             .fill(.white.opacity(0.34))
             .frame(height: 1)
-            .padding(.leading, 74)
+            .padding(.leading, AppSpacing.md)
     }
 
     var emptyState: some View {

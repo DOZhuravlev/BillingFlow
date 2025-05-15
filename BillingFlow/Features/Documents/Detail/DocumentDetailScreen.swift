@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DocumentDetailScreen: View {
 
@@ -9,6 +10,9 @@ struct DocumentDetailScreen: View {
     // MARK: - State
 
     @State private var scrollOffset: CGFloat = .zero
+    @State private var expandedLineItemIDs = Set<UUID>()
+    @State private var isPaymentDetailsPresented = false
+    @State private var copiedRequisiteID: String?
 
     // MARK: - Body
 
@@ -43,6 +47,11 @@ struct DocumentDetailScreen: View {
                 .scrollIndicators(.hidden)
             }
         }
+        .sheet(isPresented: $isPaymentDetailsPresented) {
+            paymentDetailsSheet
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 }
 
@@ -76,10 +85,10 @@ private extension DocumentDetailScreen {
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(nonEmpty(viewModel.document.buyer.displayName, fallback: "Контрагент не указан"))
+                Text(viewModel.documentTitle)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
-                    .lineLimit(3)
+                    .lineLimit(2)
 
                 navigationSubtitle
             }
@@ -93,16 +102,12 @@ private extension DocumentDetailScreen {
 
     @ViewBuilder
     var navigationSubtitle: some View {
-        let buyerSubtitle = partySubtitle(for: viewModel.document.buyer)
-
         ZStack(alignment: .leading) {
-            if buyerSubtitle.isEmpty == false {
-                Text(buyerSubtitle)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.68))
-                    .lineLimit(3)
-                    .opacity(1 - headerCollapseProgress)
-            }
+            Text(viewModel.documentSubtitle)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.68))
+                .lineLimit(1)
+                .opacity(1 - headerCollapseProgress)
 
             Text(viewModel.totalText)
                 .font(.system(size: 13, weight: .bold))
@@ -112,36 +117,42 @@ private extension DocumentDetailScreen {
                 .opacity(headerCollapseProgress)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: buyerSubtitle.isEmpty ? 18 : 34, alignment: .topLeading)
+        .frame(minHeight: 18, alignment: .topLeading)
     }
 
     var heroSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.documentTitle)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.86))
-                        .lineLimit(2)
+        VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("К оплате")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.64))
 
-                    Text(viewModel.documentSubtitle)
-                        .font(AppFont.Text.caption)
-                        .foregroundStyle(.white.opacity(0.64))
+                Text(viewModel.totalText)
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Контрагент")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.64))
+
+                Text(nonEmpty(viewModel.document.buyer.displayName, fallback: "Контрагент не указан"))
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                let buyerSubtitle = partySubtitle(for: viewModel.document.buyer)
+                if buyerSubtitle.isEmpty == false {
+                    Text(buyerSubtitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.68))
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.top, 6)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("К оплате")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.64))
-
-                    Text(viewModel.totalText)
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                }
-                .padding(.top, 10)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,54 +217,45 @@ private extension DocumentDetailScreen {
     }
 
     var lineItemsTable: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            VStack(spacing: 0) {
-                lineItemsHeader
+        VStack(spacing: 0) {
+            lineItemsHeader
 
-                if viewModel.document.items.isEmpty {
-                    emptyLineItemsView
-                } else {
-                    ForEach(Array(viewModel.document.items.enumerated()), id: \.element.id) { index, item in
-                        lineItemRow(item, index: index)
+            if viewModel.document.items.isEmpty {
+                emptyLineItemsView
+            } else {
+                ForEach(Array(viewModel.document.items.enumerated()), id: \.element.id) { index, item in
+                    lineItemRow(item, index: index)
 
-                        if item.id != viewModel.document.items.last?.id {
-                            Rectangle()
-                                .fill(.white.opacity(0.34))
-                                .frame(height: 1)
-                                .padding(.leading, AppSpacing.md)
-                                .padding(.trailing, AppSpacing.md)
-                        }
+                    if item.id != viewModel.document.items.last?.id {
+                        Rectangle()
+                            .fill(.white.opacity(0.34))
+                            .frame(height: 1)
+                            .padding(.horizontal, AppSpacing.md)
                     }
                 }
             }
-            .frame(width: lineItemsTableWidth)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(.white.opacity(0.36))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
         }
+        .frame(maxWidth: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                .fill(.white.opacity(0.36))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
     }
 
     var lineItemsHeader: some View {
         HStack(spacing: AppSpacing.xs) {
             Text("№")
-                .frame(width: 28, alignment: .leading)
+                .frame(width: 20, alignment: .leading)
 
             Text("Наименование")
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text("Кол-во")
-                .frame(width: 54, alignment: .trailing)
-
-            Text("Ед.")
-                .frame(width: 44, alignment: .leading)
-
-            Text("Цена")
-                .frame(width: 82, alignment: .trailing)
+                .frame(width: 58, alignment: .trailing)
 
             Text("Сумма")
-                .frame(width: 92, alignment: .trailing)
+                .frame(width: 88, alignment: .trailing)
         }
         .font(.system(size: 12, weight: .semibold))
         .foregroundStyle(AppColor.Text.secondary)
@@ -271,51 +273,53 @@ private extension DocumentDetailScreen {
     }
 
     func lineItemRow(_ item: DocumentItem, index: Int) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.xs) {
+        HStack(alignment: .top, spacing: AppSpacing.xs) {
             Text("\(index + 1)")
                 .font(AppFont.Text.caption)
                 .foregroundStyle(AppColor.Text.secondary)
-                .frame(width: 28, alignment: .leading)
+                .frame(width: 20, alignment: .leading)
 
-            Text(item.title.isEmpty ? "Без названия" : item.title)
-                .font(.system(size: 14, weight: .semibold))
+            ExpandableLineItemTitle(
+                title: item.title.isEmpty ? "Без названия" : item.title,
+                isExpanded: expandedLineItemIDs.contains(item.id),
+                onToggle: {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        toggleLineItem(item.id)
+                    }
+                }
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(quantityText(for: item))
+                .font(AppFont.Text.caption)
                 .foregroundStyle(AppColor.Text.primary)
+                .multilineTextAlignment(.trailing)
                 .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(decimalText(item.quantity))
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(width: 54, alignment: .trailing)
-
-            Text(item.unit)
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.secondary)
-                .lineLimit(1)
-                .frame(width: 44, alignment: .leading)
-
-            Text(CurrencyFormatter.amountText(item.price, currencyCode: viewModel.document.currencyCode))
-                .font(AppFont.Text.caption)
-                .foregroundStyle(AppColor.Text.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .frame(width: 82, alignment: .trailing)
+                .minimumScaleFactor(0.76)
+                .frame(width: 58, alignment: .trailing)
 
             Text(CurrencyFormatter.amountText(item.amount, currencyCode: viewModel.document.currencyCode))
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(AppColor.Text.primary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .frame(width: 92, alignment: .trailing)
+                .minimumScaleFactor(0.64)
+                .frame(width: 88, alignment: .trailing)
         }
         .padding(.horizontal, AppSpacing.md)
         .padding(.vertical, 11)
     }
 
-    var lineItemsTableWidth: CGFloat {
-        560
+    func quantityText(for item: DocumentItem) -> String {
+        let unit = item.unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        return unit.isEmpty ? decimalText(item.quantity) : "\(decimalText(item.quantity))\n\(unit)"
+    }
+
+    func toggleLineItem(_ id: UUID) {
+        if expandedLineItemIDs.contains(id) {
+            expandedLineItemIDs.remove(id)
+        } else {
+            expandedLineItemIDs.insert(id)
+        }
     }
 
     var totalsBlock: some View {
@@ -358,34 +362,212 @@ private extension DocumentDetailScreen {
     }
 
     func partySummaryCard(party: DocumentParty) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(spacing: 8) {
-                compactInfoRow("Полное", party.fullName)
-                compactInfoRow("ИНН", party.taxID)
-                compactInfoRow("Адрес", party.address)
-                compactInfoRow("Банк", party.bankName)
-                compactInfoRow("Счёт", party.bankAccount)
-                compactInfoRow("БИК", party.bankCode)
-                compactInfoRow("Контакт", party.contactName)
-                compactInfoRow("Телефон", party.phone)
-                compactInfoRow("Email", party.email)
+        VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            Text(nonEmpty(party.displayName, fallback: "Получатель не указан"))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(AppColor.Text.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if party.bankAccount.isEmpty == false {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        Text("Расчетный счет")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(AppColor.Text.secondary)
+
+                        Spacer(minLength: AppSpacing.sm)
+
+                        Button {
+                            copyRequisite(party.bankAccount, id: "account")
+                        } label: {
+                            Image(systemName: copiedRequisiteID == "account" ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(AppColor.Brand.primary)
+                                .frame(width: 30, height: 30)
+                                .background(AppColor.Brand.primary.opacity(0.10), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Скопировать расчетный счет")
+                    }
+
+                    Text(party.bankAccount)
+                        .font(.system(size: 17, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            }
+
+            if party.bankName.isEmpty == false {
+                paymentInfoBlock(title: "Банк", value: party.bankName)
+            }
+
+            if party.bankCode.isEmpty == false {
+                paymentInfoBlock(title: "БИК", value: party.bankCode)
+            }
+
+            HStack(spacing: AppSpacing.sm) {
+                paymentActionButton(
+                    title: copiedRequisiteID == "all" ? "Скопировано" : "Скопировать",
+                    iconName: copiedRequisiteID == "all" ? "checkmark" : "doc.on.doc",
+                    isPrimary: true
+                ) {
+                    copyRequisite(allRequisitesText(for: party), id: "all")
+                }
+
+                paymentActionButton(
+                    title: "Все реквизиты",
+                    iconName: "info.circle",
+                    isPrimary: false
+                ) {
+                    isPaymentDetailsPresented = true
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppSpacing.md)
-        .background {
-            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .fill(.white.opacity(0.36))
+    }
+
+    func paymentInfoBlock(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppColor.Text.secondary)
+
+            Text(value)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppColor.Text.primary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    func paymentActionButton(
+        title: String,
+        iconName: String,
+        isPrimary: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: iconName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isPrimary ? .white : AppColor.Text.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background {
+                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                        .fill(isPrimary ? AppColor.Brand.primary : .black.opacity(0.05))
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    var paymentDetailsSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Данные получателя")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.black.opacity(0.9))
+
+                    VStack(spacing: 10) {
+                        paymentDetailRow(title: "Название", value: viewModel.document.seller.displayName)
+                        paymentDetailRow(title: "Полное наименование", value: viewModel.document.seller.fullName)
+                        paymentDetailRow(title: "ИНН", value: viewModel.document.seller.taxID)
+                        paymentDetailRow(title: "КПП / ОГРН", value: viewModel.document.seller.registrationNumber)
+                        paymentDetailRow(title: "Адрес", value: viewModel.document.seller.address)
+                        paymentDetailRow(title: "Банк", value: viewModel.document.seller.bankName)
+                        paymentDetailRow(title: "Расчетный счет", value: viewModel.document.seller.bankAccount)
+                        paymentDetailRow(title: "БИК", value: viewModel.document.seller.bankCode)
+                        paymentDetailRow(title: "Руководитель", value: viewModel.document.seller.contactName)
+                        paymentDetailRow(title: "Телефон", value: viewModel.document.seller.phone)
+                        paymentDetailRow(title: "Email", value: viewModel.document.seller.email)
+                    }
+                }
+                .padding(20)
+            }
+            .navigationTitle("Реквизиты для оплаты")
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                paymentDetailsBottomAction
+            }
         }
     }
 
-    @ViewBuilder
-    func compactInfoRow(_ title: String, _ value: String) -> some View {
-        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    func paymentDetailRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.black.opacity(0.52))
 
-        if trimmedValue.isEmpty == false {
-            infoRow(title, trimmedValue, valueWeight: .medium)
+            Text(value.isEmpty ? "Не указано" : value)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(value.isEmpty ? .black.opacity(0.38) : .black.opacity(0.82))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.black.opacity(0.035))
+        }
+    }
+
+    var paymentDetailsBottomAction: some View {
+        Button {
+            isPaymentDetailsPresented = false
+        } label: {
+            Text("Готово")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(AppColor.Brand.primary)
+                }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(.ultraThinMaterial)
+    }
+
+    func copyRequisite(_ value: String, id: String) {
+        guard value.isEmpty == false else { return }
+
+        UIPasteboard.general.string = value
+        copiedRequisiteID = id
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if copiedRequisiteID == id {
+                copiedRequisiteID = nil
+            }
+        }
+    }
+
+    func allRequisitesText(for party: DocumentParty) -> String {
+        [
+            requisiteLine(title: "Получатель", value: party.displayName),
+            requisiteLine(title: "Полное наименование", value: party.fullName),
+            requisiteLine(title: "ИНН", value: party.taxID),
+            requisiteLine(title: "КПП / ОГРН", value: party.registrationNumber),
+            requisiteLine(title: "Адрес", value: party.address),
+            requisiteLine(title: "Банк", value: party.bankName),
+            requisiteLine(title: "Расчетный счет", value: party.bankAccount),
+            requisiteLine(title: "БИК", value: party.bankCode)
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n")
+    }
+
+    func requisiteLine(title: String, value: String) -> String? {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : "\(title): \(trimmedValue)"
     }
 
     @ViewBuilder
@@ -486,6 +668,44 @@ private extension DocumentDetailScreen {
         ]
         .compactMap { $0 }
         .joined(separator: " · ")
+    }
+}
+
+// MARK: - Expandable Line Item
+
+private struct ExpandableLineItemTitle: View {
+
+    let title: String
+    let isExpanded: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppColor.Text.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            HStack(alignment: .top, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(isExpanded ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button(action: onToggle) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .frame(width: 24, height: 20)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Свернуть наименование" : "Показать наименование полностью")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

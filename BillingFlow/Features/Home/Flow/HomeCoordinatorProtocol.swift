@@ -14,7 +14,7 @@ protocol HomeCoordinatorProtocol: AnyObject {
     func showDocumentPreview(_ document: BusinessDocument)
     func showAllDocuments()
 
-    func showOrganization(_ organization: UUID)
+    func showOrganization(_ organization: TopOrganizationMetric)
     func showAllOrganizations()
 
     func showFinanceDetails(filter: HomeFinanceFilter)

@@ -5,7 +5,7 @@ import Foundation
 final class DocumentEditorViewModel: ObservableObject {
 
     enum Mode {
-        case create(DocumentType)
+        case create(DocumentType, buyer: DocumentParty? = nil)
         case duplicate(BusinessDocument)
         case edit(BusinessDocument)
     }
@@ -138,6 +138,9 @@ final class DocumentEditorViewModel: ObservableObject {
         )
 
         self.draft = Self.loadAutosavedDraft(key: autosaveKey) ?? draft
+        if case .create(_, let buyer?) = mode {
+            self.draft.buyer = buyer
+        }
 
         Self.normalizeItems(in: &draft)
     }
@@ -861,8 +864,12 @@ private extension DocumentEditorViewModel {
         documentFactory: DocumentFactory
     ) -> DocumentDraft {
         switch mode {
-        case .create(let type):
-            return documentFactory.makeEmptyDraft(type: type)
+        case .create(let type, let buyer):
+            var draft = documentFactory.makeEmptyDraft(type: type)
+            if let buyer {
+                draft.buyer = buyer
+            }
+            return draft
 
         case .duplicate(let document):
             return documentFactory.makeDuplicateDraft(from: document)

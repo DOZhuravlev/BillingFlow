@@ -128,7 +128,7 @@ private extension HomeScreen {
 private extension HomeScreen {
 
     var loadedDashboardView: some View {
-        VStack(spacing: AppSpacing.lg) {
+        VStack(spacing: AppSpacing.xl) {
             quickActionsSection
             recentDocumentsSection
             topOrganizationsSection
@@ -178,7 +178,7 @@ private extension HomeScreen {
 
     var recentDocumentsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            sectionHeader("Документы")
+            sectionHeader("Последние документы", showsAll: false)
 
             VStack(spacing: AppSpacing.sm) {
                 ForEach(viewModel.recentDocuments) { document in
@@ -202,7 +202,7 @@ private extension HomeScreen {
 
     var topOrganizationsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            sectionHeader("Частые контрагенты")
+            sectionHeader("Частые контрагенты", showsAll: false)
 
             VStack(spacing: AppSpacing.sm) {
                 ForEach(viewModel.topOrganizations) { organization in
@@ -455,7 +455,7 @@ private extension HomeScreen {
 
     func organizationRow(_ organization: TopOrganizationMetric) -> some View {
         Button {
-
+            viewModel.didTapOrganization(organization)
         } label: {
             HStack(spacing: AppSpacing.sm) {
                 Image(systemName: "briefcase.fill")
@@ -564,7 +564,7 @@ private final class PreviewDocumentsRouter: HomeCoordinatorProtocol {
 
     }
 
-    func showOrganization(_ organization: UUID) {
+    func showOrganization(_ organization: TopOrganizationMetric) {
 
     }
 

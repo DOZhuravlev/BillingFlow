@@ -152,8 +152,31 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
 
     }
 
-    func showOrganization(_ organization: UUID) {
+    func showOrganization(_ organization: TopOrganizationMetric) {
+        let item = OrganizationsViewModel.Item(
+            id: organization.id,
+            party: organization.party,
+            roleTitle: Organization.Role.buyer.title,
+            documentCount: organization.documentCount,
+            documents: organization.documents
+        )
+        let viewModel = OrganizationDetailViewModel(
+            item: item,
+            coordinator: self
+        )
+        let view = OrganizationDetailScreen(viewModel: viewModel)
+        let controller = HostingController(
+            rootView: view,
+            navigationTitle: "Контрагент",
+            titleDisplayMode: .never
+        )
 
+        controller.view.backgroundColor = .clear
+        controller.edgesForExtendedLayout = [.top, .bottom]
+        controller.extendedLayoutIncludesOpaqueBars = true
+
+        navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
     }
 
     func showAllOrganizations() {

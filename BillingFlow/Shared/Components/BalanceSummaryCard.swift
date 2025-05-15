@@ -23,6 +23,7 @@ struct BalanceSummaryCard: View {
                     .font(AppFont.Text.caption)
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: AppSpacing.sm)
 

@@ -14,7 +14,7 @@ final class OrganizationDetailViewModel: ObservableObject {
     // MARK: - State
 
     @Published private(set) var item: OrganizationsViewModel.Item
-    @Published var isDetailsExpanded = false
+    @Published var isRequisitesPresented = false
 
     // MARK: - Dependencies
 
@@ -34,14 +34,66 @@ final class OrganizationDetailViewModel: ObservableObject {
 // MARK: - Actions
 
 extension OrganizationDetailViewModel {
+    func didTapBack() {
+        coordinator?.pop()
+    }
+
     func didTapDocument(_ document: BusinessDocument) {
         coordinator?.showDetail(document: document)
+    }
+
+    func didTapCreateDocument(type: DocumentType) {
+        coordinator?.showCreateDocument(type: type, buyer: item.party)
     }
 }
 
 // MARK: - Display State
 
 extension OrganizationDetailViewModel {
+    var financeMetrics: [FinanceMetric] {
+        [
+            FinanceMetric(
+                title: "Сумма счетов",
+                amount: invoiceAmountText,
+                style: .income
+            ),
+            FinanceMetric(
+                title: "Не оплачено",
+                amount: unpaidInvoiceAmountText,
+                style: .debt
+            )
+        ]
+    }
+
+    var invoiceAmountText: String {
+        amountText(for: item.documents.filter { $0.type == .invoice })
+    }
+
+    var unpaidInvoiceAmountText: String {
+        amountText(for: item.documents.filter {
+            $0.type == .invoice && $0.paidAt == nil
+        })
+    }
+
+    private func amountText(for documents: [BusinessDocument]) -> String {
+        let groupedByCurrency = Dictionary(grouping: documents, by: \.currencyCode)
+        guard groupedByCurrency.isEmpty == false else {
+            return "0 ₽"
+        }
+
+        guard groupedByCurrency.count == 1,
+              let currencyCode = groupedByCurrency.keys.first,
+              let documents = groupedByCurrency[currencyCode] else {
+            return "Разные валюты"
+        }
+
+        let total = documents.reduce(Decimal.zero) { result, document in
+            result + document.totals.total
+        }
+
+        return CurrencyFormatter.amountText(total, currencyCode: currencyCode)
+    }
+
     var documentSections: [DocumentSection] {
         let calendar = Calendar.current
         let groupedDocuments = Dictionary(grouping: item.documents) { document in

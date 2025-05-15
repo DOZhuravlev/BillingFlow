@@ -23,6 +23,7 @@ final class OrganizationsCoordinator: NSObject, DocumentsCoordinatorProtocol {
 
     func start() {
         navigationController.delegate = self
+        navigationController.setNavigationBarHidden(true, animated: false)
 
         let viewModel = OrganizationsViewModel(
             organizationsRepository: dependencies.organizationsRepository,
@@ -90,6 +91,10 @@ final class OrganizationsCoordinator: NSObject, DocumentsCoordinatorProtocol {
 
     func showCreateDocument(type: DocumentType) {
         showEditor(mode: .create(type))
+    }
+
+    func showCreateDocument(type: DocumentType, buyer: DocumentParty) {
+        showEditor(mode: .create(type, buyer: buyer))
     }
 
     func showDuplicateDocument(document: BusinessDocument) {

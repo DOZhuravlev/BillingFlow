@@ -99,6 +99,10 @@ extension HomeViewModel {
         coordinator?.showDocument(document)
     }
 
+    func didTapOrganization(_ organization: TopOrganizationMetric) {
+        coordinator?.showOrganization(organization)
+    }
+
     func handleDocumentsDidChange() {
         Task { [weak self] in
             await self?.reload()
@@ -158,7 +162,13 @@ private extension HomeViewModel {
         let organizationsByKey = organizations.reduce(into: [String: Organization]()) { result, organization in
             result[organization.matchingKey] = organization
         }
-        var metricsByKey: [String: (organization: Organization, count: Int, total: Decimal, currencyCode: String)] = [:]
+        var metricsByKey: [String: (
+            organization: Organization,
+            count: Int,
+            total: Decimal,
+            currencyCode: String,
+            documents: [BusinessDocument]
+        )] = [:]
 
         for document in documents where document.buyer.isEmpty == false {
             let organization = Organization(party: document.buyer, role: .buyer)
@@ -168,13 +178,15 @@ private extension HomeViewModel {
             if var metric = metricsByKey[key] {
                 metric.count += 1
                 metric.total += document.totals.total
+                metric.documents.append(document)
                 metricsByKey[key] = metric
             } else {
                 metricsByKey[key] = (
                     organization: storedOrganization,
                     count: 1,
                     total: document.totals.total,
-                    currencyCode: document.currencyCode
+                    currencyCode: document.currencyCode,
+                    documents: [document]
                 )
             }
         }
@@ -195,7 +207,9 @@ private extension HomeViewModel {
                     totalAmount: CurrencyFormatter.amountText(
                         metric.total,
                         currencyCode: metric.currencyCode
-                    )
+                    ),
+                    party: metric.organization.party,
+                    documents: metric.documents.sorted { $0.date > $1.date }
                 )
             }
     }
