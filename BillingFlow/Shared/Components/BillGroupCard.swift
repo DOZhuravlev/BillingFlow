@@ -8,6 +8,7 @@ struct BillGroupCard: View {
     let statusTitle: String
     let statusAmount: String
     let statusStyle: StatusPill.Style
+    var isDraft = false
 
 //    var body: some View {
 //        MaterialCard(cornerRadius: AppRadius.lg) {
@@ -78,6 +79,15 @@ struct BillGroupCard: View {
     private var documentRow: some View {
 
         HStack(spacing: AppSpacing.xs) {
+
+            if isDraft {
+                Text("Черновик")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .frame(height: 20)
+                    .background(Color.blue.opacity(0.9), in: Capsule())
+            }
 
 //            Image(systemName: iconName)
 //

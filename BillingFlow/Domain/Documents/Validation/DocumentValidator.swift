@@ -59,7 +59,7 @@ struct DocumentValidator {
     }
 
     private func hasItemsWithInvalidPrice(in document: BusinessDocument) -> Bool {
-        document.items.contains { $0.price < 0 }
+        document.items.contains { $0.price <= 0 }
     }
 
     // MARK: - Totals

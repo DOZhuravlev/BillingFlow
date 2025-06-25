@@ -90,6 +90,10 @@ extension HomeViewModel {
         coordinator?.showCreateDocument(type: type)
     }
 
+    func didTapCreateDeal(type: DealType) {
+        coordinator?.showCreateDeal(type: type)
+    }
+
     func didTapDocument(id: UUID) {
         guard let document = documentsByID[id] else { return }
         coordinator?.showDocument(document)
@@ -150,7 +154,7 @@ private extension HomeViewModel {
 
     func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
         documents
-            .sorted { $0.date > $1.date }
+            .sorted(by: documentComesBefore)
             .prefix(3)
             .map(documentCardItemMapper.map)
     }
@@ -170,7 +174,7 @@ private extension HomeViewModel {
             documents: [BusinessDocument]
         )] = [:]
 
-        for document in documents where document.buyer.isEmpty == false {
+        for document in documents where document.status != .draft && document.buyer.isEmpty == false {
             let organization = Organization(party: document.buyer, role: .buyer)
             let key = organization.matchingKey
             let storedOrganization = organizationsByKey[key] ?? organization
@@ -212,6 +216,12 @@ private extension HomeViewModel {
                     documents: metric.documents.sorted { $0.date > $1.date }
                 )
             }
+    }
+
+    func documentComesBefore(_ lhs: BusinessDocument, _ rhs: BusinessDocument) -> Bool {
+        if lhs.status == .draft, rhs.status != .draft { return true }
+        if lhs.status != .draft, rhs.status == .draft { return false }
+        return (lhs.updatedAt ?? lhs.date) > (rhs.updatedAt ?? rhs.date)
     }
 
     func clearContent() {

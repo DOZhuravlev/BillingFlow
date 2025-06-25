@@ -13,7 +13,7 @@ struct DocumentFactory {
         self.dateProvider = dateProvider
     }
 
-    func makeEmptyDraft(type: DocumentType) -> DocumentDraft {
+    func makeEmptyDraft(type: DocumentType, dealID: UUID? = nil) -> DocumentDraft {
         let now = dateProvider()
 
         return DocumentDraft(
@@ -26,6 +26,7 @@ struct DocumentFactory {
             notes: "",
             currencyCode: "RUB",
             sourceDocumentID: nil,
+            dealID: dealID,
             updatedAt: now
         )
     }
@@ -44,6 +45,7 @@ struct DocumentFactory {
             notes: source.notes,
             currencyCode: source.currencyCode,
             sourceDocumentID: source.id,
+            dealID: source.dealID,
             updatedAt: now
         )
     }

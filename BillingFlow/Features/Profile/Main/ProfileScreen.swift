@@ -68,44 +68,31 @@ private extension ProfileScreen {
 
     var headerSection: some View {
         Button(action: onOrganizationProfile) {
-            HStack(alignment: .center, spacing: AppSpacing.md) {
-                organizationAvatar
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                Text("Основная организация")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.66))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(primaryOrganizationName)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
+                Text(primaryOrganizationName)
+                    .font(.system(size: 23, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    Text(primaryOrganizationSubtitle)
-                        .font(AppFont.Text.caption)
-                        .foregroundStyle(.white.opacity(0.72))
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.72))
+                Text(primaryOrganizationSubtitle)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.76))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(AppSpacing.md)
+            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                    .stroke(.white.opacity(0.2), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    var organizationAvatar: some View {
-        Text(primaryOrganizationInitials)
-            .font(.system(size: 20, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 56, height: 56)
-            .background {
-                Circle()
-                    .fill(.white.opacity(0.18))
-                    .overlay {
-                        Circle()
-                            .stroke(.white.opacity(0.34), lineWidth: 1)
-                    }
-            }
     }
 
     var primaryOrganizationName: String {
@@ -116,33 +103,14 @@ private extension ProfileScreen {
 
     var primaryOrganizationSubtitle: String {
         guard let organization = viewModel.primaryOrganization else {
-            return "Добавьте свою организацию и банковские реквизиты"
+            return "Нажмите, чтобы добавить организацию"
         }
-
-        var parts: [String] = []
 
         if organization.party.taxID.isEmpty == false {
-            parts.append("ИНН \(organization.party.taxID)")
+            return "ИНН \(organization.party.taxID)"
         }
 
-        if organization.defaultBankAccount?.bankName.isEmpty == false {
-            parts.append(organization.defaultBankAccount?.bankName ?? "")
-        }
-
-        return parts.isEmpty ? "Профиль, реквизиты и оформление документов" : parts.joined(separator: " · ")
-    }
-
-    var primaryOrganizationInitials: String {
-        let name = primaryOrganizationName
-        let initials = name
-            .split(separator: " ")
-            .prefix(2)
-            .compactMap(\.first)
-            .map(String.init)
-            .joined()
-            .uppercased()
-
-        return initials.isEmpty ? "?" : initials
+        return "ИНН не указан"
     }
 }
 

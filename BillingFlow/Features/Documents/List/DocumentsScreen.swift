@@ -39,14 +39,14 @@ struct DocumentsScreen: View {
             "Удалить документ?",
             isPresented: deleteConfirmationBinding,
             presenting: viewModel.documentPendingDeletion
-        ) { _ in
+        ) { document in
             Button("Отмена", role: .cancel) {
                 viewModel.cancelDeleteDocument()
             }
 
             Button("Удалить", role: .destructive) {
                 Task {
-                    await viewModel.confirmDeleteDocument()
+                    await viewModel.confirmDeleteDocument(document)
                 }
             }
         } message: { document in

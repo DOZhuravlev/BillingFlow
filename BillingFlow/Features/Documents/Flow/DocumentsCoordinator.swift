@@ -81,6 +81,11 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
     // MARK: - Document Detail Navigation
 
     func showDetail(document: BusinessDocument) {
+        guard document.status != .draft else {
+            showEditDocument(document: document)
+            return
+        }
+
         let viewModel = DocumentDetailViewModel(
             document: document,
             coordinator: self
@@ -150,7 +155,7 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
 
     func showEditDocument(document: BusinessDocument) {
         let viewModel = DocumentEditorViewModel(
-            mode: .edit(document),
+            mode: document.status == .draft ? .resumeDraft(document) : .edit(document),
             router: self,
             documentsRepository: documentsRepository,
             organizationsRepository: organizationsRepository,

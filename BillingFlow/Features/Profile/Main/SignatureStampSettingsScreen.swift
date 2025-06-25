@@ -2,12 +2,19 @@ import SwiftUI
 
 struct SignatureStampSettingsScreen: View {
 
+    let onBack: () -> Void
+
+    init(onBack: @escaping () -> Void = { }) {
+        self.onBack = onBack
+    }
+
     // MARK: - Body
 
     var body: some View {
         ProfileSettingsContainer(
             title: "Подпись и печать",
-            subtitle: "Добавьте изображения для документов. Позже они будут попадать в PDF."
+            subtitle: "Добавьте изображения для документов. Позже они будут попадать в PDF.",
+            onBack: onBack
         ) {
             uploadCard(
                 title: "Подпись",

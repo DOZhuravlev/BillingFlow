@@ -5,8 +5,9 @@ import Foundation
 final class DocumentEditorViewModel: ObservableObject {
 
     enum Mode {
-        case create(DocumentType, buyer: DocumentParty? = nil)
+        case create(DocumentType, buyer: DocumentParty? = nil, dealID: UUID? = nil)
         case duplicate(BusinessDocument)
+        case resumeDraft(BusinessDocument)
         case edit(BusinessDocument)
     }
 
@@ -108,6 +109,7 @@ final class DocumentEditorViewModel: ObservableObject {
     private let documentValidator: DocumentValidator
     private var loadedDocuments: [BusinessDocument] = []
     private var organizationSearchTask: Task<Void, Never>?
+    private var draftSaveTask: Task<Void, Never>?
     private var activeOrganizationSearchTarget: PartySearchTarget?
 
     // MARK: - Initialization
@@ -137,9 +139,14 @@ final class DocumentEditorViewModel: ObservableObject {
             documentFactory: documentFactory
         )
 
-        self.draft = Self.loadAutosavedDraft(key: autosaveKey) ?? draft
-        if case .create(_, let buyer?) = mode {
+        if case .create(_, let buyer?, _) = mode {
             self.draft.buyer = buyer
+        }
+
+        if case .resumeDraft(let document) = mode,
+           let rawValue = document.draftStepRawValue,
+           let step = Step(rawValue: rawValue) {
+            self.currentStep = step
         }
 
         Self.normalizeItems(in: &draft)
@@ -159,6 +166,10 @@ extension DocumentEditorViewModel {
 
     var totals: DocumentTotals {
         draft.totals
+    }
+
+    var availableUnits: [DocumentUnit] {
+        DocumentUnit.all
     }
 
     var canMoveForward: Bool {
@@ -191,8 +202,21 @@ extension DocumentEditorViewModel {
         return false
     }
 
+    var isResumingDraft: Bool {
+        if case .resumeDraft = mode {
+            return true
+        }
+        return false
+    }
+
     var navigationTitle: String {
-        isEditing ? "Редактирование \(documentKindName)" : "Новый \(documentKindName)"
+        if isEditing {
+            return "Редактирование \(documentKindName)"
+        }
+        if isResumingDraft {
+            return "Черновик: \(documentKindName)"
+        }
+        return "Новый \(documentKindName)"
     }
 
     var documentKindName: String {
@@ -467,9 +491,31 @@ extension DocumentEditorViewModel {
     }
 
     var buyerOrganizationOptions: [OrganizationOption] {
-        organizationOptions.filter { option in
+        let storedOptions = organizationOptions.filter { option in
             option.role == .buyer || option.role == .mixed
         }
+
+        guard draft.buyer.isEmpty == false else {
+            return storedOptions
+        }
+
+        let selectedOrganization = Organization(party: draft.buyer, role: .buyer)
+        guard storedOptions.contains(where: { $0.id == selectedOrganization.matchingKey }) == false else {
+            return storedOptions
+        }
+
+        let selectedOption = OrganizationOption(
+            id: selectedOrganization.matchingKey,
+            party: draft.buyer,
+            role: .buyer,
+            bankAccounts: [],
+            defaultBankAccountID: nil,
+            isDefault: false,
+            roleTitle: Organization.Role.buyer.title,
+            documentCount: 0
+        )
+
+        return [selectedOption] + storedOptions
     }
 
     var selectedSellerBankAccounts: [OrganizationBankAccount] {
@@ -538,6 +584,7 @@ extension DocumentEditorViewModel {
             )
             applyDefaultSellerIfNeeded(from: storedOrganizations)
             updateRecentDocumentTemplates()
+            await persistDraftNow()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -565,11 +612,15 @@ extension DocumentEditorViewModel {
 
     func goToStep(_ step: Step) {
         currentStep = step
+        autosaveDraft()
     }
 
     func didTapClose() {
-        autosaveDraft()
-        coordinator?.pop()
+        Task { [weak self] in
+            guard let self else { return }
+            await persistDraftNow()
+            coordinator?.pop()
+        }
     }
 
     func didTapPreview() {
@@ -589,9 +640,12 @@ extension DocumentEditorViewModel {
 
 extension DocumentEditorViewModel {
     func useFreshDocument() {
+        let draftID = draft.id
+        let dealID = draft.dealID
         let type = draft.type
         let seller = draft.seller
-        draft = documentFactory.makeEmptyDraft(type: type)
+        draft = documentFactory.makeEmptyDraft(type: type, dealID: dealID)
+        draft.id = draftID
         draft.seller = seller
         Self.normalizeItems(in: &draft)
         updateRecentDocumentTemplates()
@@ -599,7 +653,11 @@ extension DocumentEditorViewModel {
     }
 
     func useTemplate(_ document: BusinessDocument) {
+        let draftID = draft.id
+        let dealID = draft.dealID
         draft = documentFactory.makeDuplicateDraft(from: document)
+        draft.id = draftID
+        draft.dealID = dealID
         draft.updatedAt = Date()
         Self.normalizeItems(in: &draft)
         updateRecentDocumentTemplates()
@@ -796,8 +854,14 @@ extension DocumentEditorViewModel {
         updateItem(id: id) { $0.quantity = quantity }
     }
 
-    func updateItemUnit(id: UUID, unit: String) {
-        updateItem(id: id) { $0.unit = unit }
+    func updateItemUnit(id: UUID, unit: DocumentUnit) {
+        updateItem(id: id) { $0.unit = unit.shortName }
+    }
+
+    func updateCustomItemUnit(id: UUID, unit: String) {
+        let normalizedUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedUnit.isEmpty == false else { return }
+        updateItem(id: id) { $0.unit = normalizedUnit }
     }
 
     func updateItemPrice(id: UUID, price: Decimal) {
@@ -840,11 +904,11 @@ private extension DocumentEditorViewModel {
         }
 
         do {
+            draftSaveTask?.cancel()
             try await documentsRepository.save(document: readyDocument)
             try await organizationsRepository.upsert(party: draft.seller, role: .seller)
             try await organizationsRepository.upsert(party: draft.buyer, role: .buyer)
             documentEventsStore.sendDocumentsDidChange()
-            clearAutosavedDraft()
             coordinator?.finishDocumentFlowAfterSave()
         } catch {
             errorMessage = error.localizedDescription
@@ -864,8 +928,8 @@ private extension DocumentEditorViewModel {
         documentFactory: DocumentFactory
     ) -> DocumentDraft {
         switch mode {
-        case .create(let type, let buyer):
-            var draft = documentFactory.makeEmptyDraft(type: type)
+        case .create(let type, let buyer, let dealID):
+            var draft = documentFactory.makeEmptyDraft(type: type, dealID: dealID)
             if let buyer {
                 draft.buyer = buyer
             }
@@ -873,6 +937,9 @@ private extension DocumentEditorViewModel {
 
         case .duplicate(let document):
             return documentFactory.makeDuplicateDraft(from: document)
+
+        case .resumeDraft(let document):
+            return makeDraft(from: document)
 
         case .edit(let document):
             return makeDraft(from: document)
@@ -890,7 +957,9 @@ private extension DocumentEditorViewModel {
             items: document.items,
             notes: document.notes,
             currencyCode: document.currencyCode,
-            updatedAt: Date()
+            sourceDocumentID: nil,
+            dealID: document.dealID,
+            updatedAt: document.updatedAt ?? Date()
         )
     }
 
@@ -920,7 +989,7 @@ private extension DocumentEditorViewModel {
             )
         }
 
-        for document in documents {
+        for document in documents where document.status != .draft {
             merge(
                 party: document.seller,
                 role: .seller,
@@ -954,7 +1023,7 @@ private extension DocumentEditorViewModel {
 
     func updateRecentDocumentTemplates() {
         recentDocumentTemplates = loadedDocuments
-            .filter { $0.type == draft.type }
+            .filter { $0.type == draft.type && $0.status != .draft }
             .sorted { $0.date > $1.date }
     }
 
@@ -986,9 +1055,9 @@ private extension DocumentEditorViewModel {
     static func defaultUnit(for type: DocumentType) -> String {
         switch type {
         case .invoice, .deliveryNote:
-            return "шт"
+            return DocumentUnit.piece.shortName
         case .act:
-            return "услуга"
+            return DocumentUnit.service.shortName
         }
     }
 
@@ -1047,34 +1116,48 @@ private extension DocumentEditorViewModel {
 
 // MARK: - Draft Persistence
 
+extension DocumentEditorViewModel {
+    func persistDraftNow() async {
+        draftSaveTask?.cancel()
+        await persistDraft()
+    }
+}
+
 private extension DocumentEditorViewModel {
-    var autosaveKey: String {
+    var shouldPersistDraft: Bool {
         switch mode {
-        case .create:
-            return "billingflow.documentWizard.autosave.create.\(draft.type.rawValue)"
-        case .duplicate:
-            return "billingflow.documentWizard.autosave.duplicate.\(draft.sourceDocumentID?.uuidString ?? draft.id.uuidString)"
-        case .edit(let document):
-            return "billingflow.documentWizard.autosave.edit.\(document.id.uuidString)"
+        case .create, .duplicate, .resumeDraft:
+            return true
+        case .edit:
+            return false
         }
     }
 
     func autosaveDraft() {
-        do {
-            let data = try JSONEncoder.autosaveEncoder.encode(draft)
-            UserDefaults.standard.set(data, forKey: autosaveKey)
-        } catch {
-            errorMessage = error.localizedDescription
+        guard shouldPersistDraft else { return }
+
+        draft.updatedAt = Date()
+        draftSaveTask?.cancel()
+        draftSaveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard Task.isCancelled == false else { return }
+            await self?.persistDraft()
         }
     }
 
-    func clearAutosavedDraft() {
-        UserDefaults.standard.removeObject(forKey: autosaveKey)
-    }
+    func persistDraft() async {
+        guard shouldPersistDraft else { return }
 
-    static func loadAutosavedDraft(key: String) -> DocumentDraft? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder.autosaveDecoder.decode(DocumentDraft.self, from: data)
+        do {
+            let document = draft.asBusinessDocument(
+                status: .draft,
+                draftStepRawValue: currentStep.rawValue
+            )
+            try await documentsRepository.save(document: document)
+            documentEventsStore.sendDocumentsDidChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -1093,21 +1176,5 @@ private extension DocumentEditorViewModel {
             guard let index = draft.items.firstIndex(where: { $0.id == id }) else { return }
             updates(&draft.items[index])
         }
-    }
-}
-
-private extension JSONEncoder {
-    static var autosaveEncoder: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-}
-
-private extension JSONDecoder {
-    static var autosaveDecoder: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }
 }

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DocumentsFlowRootView: UIViewControllerRepresentable {
 
+    @ObservedObject private var appRouteStore: AppRouteStore
+
     // MARK: - Dependencies
 
     private let dependencies: AppDependencies
@@ -10,6 +12,7 @@ struct DocumentsFlowRootView: UIViewControllerRepresentable {
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
+        self.appRouteStore = dependencies.appRouteStore
     }
 
     // MARK: - Root Navigation Setup
@@ -39,7 +42,11 @@ struct DocumentsFlowRootView: UIViewControllerRepresentable {
 
     // MARK: - UIKit Update Cycle
 
-    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) { }
+    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {
+        guard let request = appRouteStore.documentCreationRequest else { return }
+        context.coordinator.documentsCoordinator?.showCreateDocument(type: request.type)
+        appRouteStore.consumeDocumentCreationRequest(id: request.id)
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()

@@ -22,9 +22,9 @@ struct DocumentItem: Identifiable, Codable, Hashable, Sendable {
     }
 
     var isValid: Bool {
-        title.isEmpty == false &&
+        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
         quantity > 0 &&
-        price >= 0
+        amount > 0
     }
 
     init(

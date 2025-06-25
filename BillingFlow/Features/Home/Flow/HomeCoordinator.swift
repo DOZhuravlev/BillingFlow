@@ -66,6 +66,10 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
         showEditor(mode: .create(type))
     }
 
+    func showCreateDeal(type: DealType) {
+        dependencies.appRouteStore.openDealCreation(type: type)
+    }
+
     func showDuplicateDocument(_ document: BusinessDocument) {
         showEditor(mode: .duplicate(document))
     }
@@ -75,6 +79,11 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
     }
 
     func showDetail(document: BusinessDocument) {
+        guard document.status != .draft else {
+            showEditor(mode: .resumeDraft(document))
+            return
+        }
+
         let viewModel = DocumentDetailViewModel(
             document: document,
             coordinator: self
@@ -96,7 +105,10 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
     }
 
     func showEditDocument(document: BusinessDocument) {
-        showEditor(mode: .edit(document))
+        let mode: DocumentEditorViewModel.Mode = document.status == .draft
+            ? .resumeDraft(document)
+            : .edit(document)
+        showEditor(mode: mode)
     }
 
     func showDuplicateDocument(document: BusinessDocument) {

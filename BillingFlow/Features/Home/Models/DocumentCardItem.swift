@@ -9,4 +9,5 @@ struct DocumentCardItem: Identifiable {
     let statusTitle: String
     let statusAmount: String
     let statusStyle: StatusPill.Style
+    let isDraft: Bool
 }

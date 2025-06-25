@@ -124,7 +124,7 @@ private extension OrganizationsViewModel {
             )
         }
 
-        for document in documents {
+        for document in documents where document.status != .draft {
             merge(
                 party: document.buyer,
                 role: .buyer,

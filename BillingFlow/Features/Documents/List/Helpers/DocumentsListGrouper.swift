@@ -18,12 +18,23 @@ struct DocumentsListGrouper {
                 DocumentsMonthSection(
                     key: key,
                     title: monthTitle(for: key),
-                    documents: documents.sorted { $0.date > $1.date }
+                    documents: documents.sorted(by: documentComesBefore)
                 )
             }
             .sorted { lhs, rhs in
-                lhs.key.sortValue > rhs.key.sortValue
+                let lhsHasDraft = lhs.documents.contains { $0.status == .draft }
+                let rhsHasDraft = rhs.documents.contains { $0.status == .draft }
+                if lhsHasDraft != rhsHasDraft {
+                    return lhsHasDraft
+                }
+                return lhs.key.sortValue > rhs.key.sortValue
             }
+    }
+
+    private func documentComesBefore(_ lhs: BusinessDocument, _ rhs: BusinessDocument) -> Bool {
+        if lhs.status == .draft, rhs.status != .draft { return true }
+        if lhs.status != .draft, rhs.status == .draft { return false }
+        return (lhs.updatedAt ?? lhs.date) > (rhs.updatedAt ?? rhs.date)
     }
 
     private func monthTitle(for key: DocumentsMonthKey) -> String {

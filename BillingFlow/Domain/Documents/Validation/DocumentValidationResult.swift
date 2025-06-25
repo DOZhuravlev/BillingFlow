@@ -30,7 +30,7 @@ enum DocumentValidationError: Equatable, Hashable, Sendable {
         case .invalidItemQuantity:
             return "Количество в позициях должно быть больше нуля."
         case .invalidItemPrice:
-            return "Цена в позициях не может быть отрицательной."
+            return "Цена в позициях должна быть больше нуля."
         }
     }
 }

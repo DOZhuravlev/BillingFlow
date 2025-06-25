@@ -5,13 +5,19 @@ struct NotificationSettingsScreen: View {
     // MARK: - State
 
     @State private var notificationsEnabled = true
+    let onBack: () -> Void
+
+    init(onBack: @escaping () -> Void = { }) {
+        self.onBack = onBack
+    }
 
     // MARK: - Body
 
     var body: some View {
         ProfileSettingsContainer(
             title: "Уведомления",
-            subtitle: "Включите или выключите уведомления приложения."
+            subtitle: "Включите или выключите уведомления приложения.",
+            onBack: onBack
         ) {
             MaterialCard(cornerRadius: AppRadius.lg, padding: 0) {
                 toggleRow(

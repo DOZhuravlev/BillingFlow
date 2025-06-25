@@ -32,8 +32,8 @@ struct AppRootView: View {
             if tabBarVisibilityStore.isHidden == false {
                 CustomTabView(
                     selection: $appCoordinator.selectedTab,
-                    onCreateTap: {
-                        appCoordinator.handleCreateDocumentTap()
+                    onCreateDocument: { type in
+                        appCoordinator.createDocument(type: type)
                     }
                 )
                 .offset(y: 20)
@@ -44,6 +44,14 @@ struct AppRootView: View {
         .onChange(of: appRouteStore.organizationProfileRequestID) { requestID in
             guard requestID != nil else { return }
             appCoordinator.selectTab(.profile)
+        }
+        .onChange(of: appRouteStore.dealCreationRequest) { request in
+            guard request != nil else { return }
+            appCoordinator.selectTab(.deals)
+        }
+        .onChange(of: appRouteStore.documentCreationRequest) { request in
+            guard request != nil else { return }
+            appCoordinator.selectTab(.documents)
         }
         .sheet(item: $appCoordinator.activeSheet) { sheet in
             //sheetView(sheet)
@@ -67,6 +75,11 @@ struct AppRootView: View {
             .ignoresSafeArea()
             .opacity(appCoordinator.selectedTab == .documents ? 1 : 0)
             .allowsHitTesting(appCoordinator.selectedTab == .documents)
+
+        DealsFlowRootView(dependencies: dependencies)
+            .ignoresSafeArea()
+            .opacity(appCoordinator.selectedTab == .deals ? 1 : 0)
+            .allowsHitTesting(appCoordinator.selectedTab == .deals)
 
         OrganizationsFlowRootView(dependencies: dependencies)
             .ignoresSafeArea()

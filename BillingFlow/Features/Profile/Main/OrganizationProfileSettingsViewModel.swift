@@ -88,7 +88,12 @@ extension OrganizationProfileSettingsViewModel {
     }
 
     var canSave: Bool {
-        draft.party.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        draft.party.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+        draft.bankAccounts.allSatisfy { account in
+            (account.bankAccount.isEmpty || account.bankAccount.filter(\.isNumber).count == 20) &&
+            (account.bankCode.isEmpty || account.bankCode.filter(\.isNumber).count == 9) &&
+            (account.correspondentAccount.isEmpty || account.correspondentAccount.filter(\.isNumber).count == 20)
+        }
     }
 
     var hasUnsavedChanges: Bool {
@@ -216,20 +221,35 @@ extension OrganizationProfileSettingsViewModel {
         case .bankName:
             draft.bankAccounts[index].bankName = value
         case .bankAccount:
-            draft.bankAccounts[index].bankAccount = value
+            draft.bankAccounts[index].bankAccount = normalizedDigits(value, limit: 20)
         case .bankCode:
-            draft.bankAccounts[index].bankCode = value
+            draft.bankAccounts[index].bankCode = normalizedDigits(value, limit: 9)
         case .correspondentAccount:
-            draft.bankAccounts[index].correspondentAccount = value
+            draft.bankAccounts[index].correspondentAccount = normalizedDigits(value, limit: 20)
         }
     }
 
-    func setDefaultOrganization(_ isDefault: Bool) {
-        draft.isDefault = isDefault
-    }
+    func setDefaultOrganization(_ organization: Organization) async {
+        if organization.isDefault {
+            selectOrganization(organization)
+            return
+        }
 
-    func makeCurrentOrganizationDefault() {
-        draft.isDefault = true
+        do {
+            var updatedOrganization = organization
+            updatedOrganization.isDefault = true
+            updatedOrganization.updatedAt = Date()
+
+            try await organizationsRepository.save(organization: updatedOrganization)
+            try await clearDefaultFlag(except: updatedOrganization.id)
+            await load()
+
+            if let storedOrganization = organizations.first(where: { $0.id == updatedOrganization.id }) {
+                selectOrganization(storedOrganization)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -313,6 +333,10 @@ extension OrganizationProfileSettingsViewModel {
 // MARK: - Private Helpers
 
 private extension OrganizationProfileSettingsViewModel {
+    func normalizedDigits(_ value: String, limit: Int) -> String {
+        String(value.filter(\.isNumber).prefix(limit))
+    }
+
     func performSearch(query: String) async {
         do {
             let results = try await organizationSearchService.searchOrganizations(query: query)

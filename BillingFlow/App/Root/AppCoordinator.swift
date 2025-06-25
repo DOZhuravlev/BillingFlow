@@ -35,18 +35,9 @@ final class AppCoordinator: ObservableObject {
         selectedTab = tab
     }
 
-    func handleCreateDocumentTap() {
-        showCreateDocument()
-
-        // if dependencies.entitlementsService.canCreateDocument {
-        //     showCreateDocument()
-        // } else {
-        //     showPaywall(source: .documentLimit)
-        // }
-    }
-
-    func showCreateDocument() {
-        activeSheet = .createDocument
+    func createDocument(type: DocumentType) {
+        dependencies.appRouteStore.openDocumentCreation(type: type)
+        selectedTab = .documents
     }
 
     func showPaywall(source: PaywallSource) {

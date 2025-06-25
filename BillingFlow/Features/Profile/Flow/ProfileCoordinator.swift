@@ -22,6 +22,8 @@ final class ProfileCoordinator: NSObject {
     // MARK: - Public API
 
     func start() {
+        navigationController.setNavigationBarHidden(true, animated: false)
+
         let viewModel = ProfileViewModel(
             organizationsRepository: dependencies.organizationsRepository
         )
@@ -63,27 +65,40 @@ final class ProfileCoordinator: NSObject {
 
 private extension ProfileCoordinator {
     func showOrganizationProfile() {
+        navigationController.setNavigationBarHidden(true, animated: false)
+
         let viewModel = OrganizationProfileSettingsViewModel(
             organizationsRepository: dependencies.organizationsRepository,
             organizationSearchService: dependencies.organizationSearchService
         )
 
         push(
-            OrganizationProfileSettingsScreen(viewModel: viewModel),
+            OrganizationProfileSettingsScreen(
+                viewModel: viewModel,
+                onBack: { [weak self] in
+                    self?.pop()
+                }
+            ),
             title: "Профиль организации"
         )
     }
 
     func showSignatureAndStamp() {
+        navigationController.setNavigationBarHidden(true, animated: false)
         push(
-            SignatureStampSettingsScreen(),
+            SignatureStampSettingsScreen(onBack: { [weak self] in
+                self?.pop()
+            }),
             title: "Подпись и печать"
         )
     }
 
     func showNotificationSettings() {
+        navigationController.setNavigationBarHidden(true, animated: false)
         push(
-            NotificationSettingsScreen(),
+            NotificationSettingsScreen(onBack: { [weak self] in
+                self?.pop()
+            }),
             title: "Уведомления"
         )
     }
@@ -103,6 +118,14 @@ private extension ProfileCoordinator {
         controller.extendedLayoutIncludesOpaqueBars = true
 
         navigationController.pushViewController(controller, animated: true)
+        updateTabBarVisibility()
+    }
+
+    func pop() {
+        navigationController.popViewController(animated: true)
+        if navigationController.viewControllers.count == 1 {
+            navigationController.setNavigationBarHidden(true, animated: false)
+        }
         updateTabBarVisibility()
     }
 }

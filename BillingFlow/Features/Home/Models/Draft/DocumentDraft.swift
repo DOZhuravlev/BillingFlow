@@ -12,6 +12,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
     var notes: String
     var currencyCode: String
     var sourceDocumentID: UUID?
+    var dealID: UUID?
     var updatedAt: Date
 
     var totals: DocumentTotals {
@@ -37,6 +38,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
         notes: String = "",
         currencyCode: String = "RUB",
         sourceDocumentID: UUID? = nil,
+        dealID: UUID? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -49,10 +51,14 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
         self.notes = notes
         self.currencyCode = currencyCode
         self.sourceDocumentID = sourceDocumentID
+        self.dealID = dealID
         self.updatedAt = updatedAt
     }
 
-    func asBusinessDocument(status: DocumentStatus = .draft) -> BusinessDocument {
+    func asBusinessDocument(
+        status: DocumentStatus = .draft,
+        draftStepRawValue: Int? = nil
+    ) -> BusinessDocument {
         BusinessDocument(
             id: id,
             type: type,
@@ -63,7 +69,10 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
             items: items,
             notes: notes,
             currencyCode: currencyCode,
-            status: status
+            status: status,
+            dealID: dealID,
+            draftStepRawValue: draftStepRawValue,
+            updatedAt: updatedAt
         )
     }
 }

@@ -73,6 +73,11 @@ final class OrganizationsCoordinator: NSObject, DocumentsCoordinatorProtocol {
     }
 
     func showDetail(document: BusinessDocument) {
+        guard document.status != .draft else {
+            showEditor(mode: .resumeDraft(document))
+            return
+        }
+
         let viewModel = DocumentDetailViewModel(
             document: document,
             coordinator: self
@@ -102,7 +107,10 @@ final class OrganizationsCoordinator: NSObject, DocumentsCoordinatorProtocol {
     }
 
     func showEditDocument(document: BusinessDocument) {
-        showEditor(mode: .edit(document))
+        let mode: DocumentEditorViewModel.Mode = document.status == .draft
+            ? .resumeDraft(document)
+            : .edit(document)
+        showEditor(mode: mode)
     }
 
     func showPreview(document: BusinessDocument) {

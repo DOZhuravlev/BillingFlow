@@ -5,9 +5,14 @@ struct DocumentEditorScreen: View {
     // MARK: - State
 
     @StateObject private var viewModel: DocumentEditorViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isPaymentReminderDesignEnabled = false
     @State private var paymentReminderDate = Date()
     @State private var isSellerDetailsExpanded = false
+    @State private var expandedBuyerOrganizationID: String?
+    @State private var isCustomUnitAlertPresented = false
+    @State private var customUnitItemID: UUID?
+    @State private var customUnitText = ""
 
     // MARK: - Initialization
 
@@ -41,6 +46,24 @@ struct DocumentEditorScreen: View {
         }
         .task {
             await viewModel.onAppear()
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            Task {
+                await viewModel.persistDraftNow()
+            }
+        }
+        .alert("Своя единица", isPresented: $isCustomUnitAlertPresented) {
+            TextField("Например, рейс", text: $customUnitText)
+
+            Button("Отмена", role: .cancel) { }
+
+            Button("Сохранить") {
+                saveCustomUnit()
+            }
+            .disabled(customUnitText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("Укажите краткое название единицы измерения.")
         }
     }
 }
@@ -153,8 +176,7 @@ private extension DocumentEditorScreen {
                 subtitle: viewModel.sellerStepSubtitle,
                 searchTarget: .seller,
                 party: viewModel.draft.seller,
-                onSelect: viewModel.selectSeller,
-                onUpdate: viewModel.updateSeller
+                onSelect: viewModel.selectSeller
             )
         case .buyer:
             partyStep(
@@ -162,8 +184,7 @@ private extension DocumentEditorScreen {
                 subtitle: viewModel.buyerStepSubtitle,
                 searchTarget: .buyer,
                 party: viewModel.draft.buyer,
-                onSelect: viewModel.selectBuyer,
-                onUpdate: viewModel.updateBuyer
+                onSelect: viewModel.selectBuyer
             )
         case .details:
             detailsStep
@@ -238,7 +259,7 @@ private extension DocumentEditorScreen {
         HStack(spacing: AppSpacing.md) {
             Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .foregroundStyle(isSelected ? Color.green : AppColor.Text.secondary)
                 .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -265,7 +286,7 @@ private extension DocumentEditorScreen {
         .padding(AppSpacing.md)
         .background {
             RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .fill(isSelected ? AppColor.Brand.primary.opacity(0.08) : Color.clear)
+                .fill(isSelected ? Color.green.opacity(0.08) : Color.clear)
         }
     }
 
@@ -274,8 +295,7 @@ private extension DocumentEditorScreen {
         subtitle: String,
         searchTarget: DocumentEditorViewModel.PartySearchTarget,
         party: DocumentParty,
-        onSelect: @escaping (DocumentParty) -> Void,
-        onUpdate: @escaping (DocumentParty) -> Void
+        onSelect: @escaping (DocumentParty) -> Void
     ) -> some View {
         VStack(spacing: AppSpacing.md) {
             sectionHeader(title: title, subtitle: subtitle)
@@ -285,16 +305,7 @@ private extension DocumentEditorScreen {
             } else {
                 organizationSearchCard(target: searchTarget)
 
-                if party.isEmpty {
-                    buyerOrganizationSelectionCard(onSelect: onSelect)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                } else {
-                    selectedBuyerDetailsCard(
-                        party: party,
-                        onUpdate: onUpdate
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                buyerOrganizationSelectionCard(onSelect: onSelect)
             }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: party)
@@ -337,14 +348,7 @@ private extension DocumentEditorScreen {
                 } else {
                     VStack(spacing: 0) {
                         ForEach(viewModel.buyerOrganizationOptions) { option in
-                            Button {
-                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                                    onSelect(option.party)
-                                }
-                            } label: {
-                                buyerOrganizationRow(option)
-                            }
-                            .buttonStyle(.plain)
+                            buyerOrganizationItem(option, onSelect: onSelect)
 
                             if option.id != viewModel.buyerOrganizationOptions.last?.id {
                                 Rectangle()
@@ -360,123 +364,83 @@ private extension DocumentEditorScreen {
         }
     }
 
-    func buyerOrganizationRow(_ option: DocumentEditorViewModel.OrganizationOption) -> some View {
+    func buyerOrganizationItem(
+        _ option: DocumentEditorViewModel.OrganizationOption,
+        onSelect: @escaping (DocumentParty) -> Void
+    ) -> some View {
         let isSelected = viewModel.selectedBuyerOrganizationOption?.id == option.id
+        let isExpanded = expandedBuyerOrganizationID == option.id
 
-        return HStack(alignment: .top, spacing: AppSpacing.sm) {
-            Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                .font(.system(size: 21, weight: .semibold))
-                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
-                .frame(width: 30, height: 30)
+        return VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: AppSpacing.sm) {
+                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(isSelected ? Color.green : AppColor.Text.secondary)
+                    .frame(width: 30, height: 30)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(option.party.displayName.isEmpty ? "Без названия" : option.party.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColor.Text.primary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(option.party.displayName.isEmpty ? "Без названия" : option.party.displayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColor.Text.primary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Text(option.subtitle)
-                    .font(AppFont.Text.caption)
-                    .foregroundStyle(AppColor.Text.secondary)
-                    .lineLimit(2)
-
-                if option.party.address.isEmpty == false {
-                    Text(option.party.address)
-                        .font(.system(size: 12, weight: .medium))
+                    Text(option.subtitle)
+                        .font(AppFont.Text.caption)
                         .foregroundStyle(AppColor.Text.secondary)
                         .lineLimit(2)
+
+                    if option.party.address.isEmpty == false {
+                        Text(option.party.address)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(AppColor.Text.secondary)
+                            .lineLimit(2)
+                    }
                 }
-            }
 
-            Spacer(minLength: AppSpacing.sm)
-        }
-        .padding(AppSpacing.md)
-    }
-
-    func selectedBuyerDetailsCard(
-        party: DocumentParty,
-        onUpdate: @escaping (DocumentParty) -> Void
-    ) -> some View {
-        VStack(spacing: AppSpacing.sm) {
-            HStack {
-                Text("Реквизиты плательщика")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Spacer()
+                Spacer(minLength: AppSpacing.sm)
 
                 Button {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                        viewModel.resetBuyerSelection()
+                    withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                        expandedBuyerOrganizationID = isExpanded ? nil : option.id
                     }
                 } label: {
-                    Text("Сменить")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, AppSpacing.sm)
-                        .frame(height: 32)
-                        .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(AppColor.Text.secondary)
+                        .frame(width: 32, height: 32)
+                        .background(Color.black.opacity(0.05), in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Скрыть реквизиты" : "Показать реквизиты")
             }
-            .padding(.horizontal, AppSpacing.md)
+            .padding(AppSpacing.md)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                    onSelect(option.party)
+                }
+            }
 
-            partyFieldsCard(
-                party: party,
-                onUpdate: onUpdate
-            )
+            if isExpanded {
+                readOnlyBuyerDetails(option.party)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 
-    func partyFieldsCard(
-        party: DocumentParty,
-        onUpdate: @escaping (DocumentParty) -> Void
-    ) -> some View {
-        MaterialCard {
-            VStack(spacing: AppSpacing.md) {
-                partyTextField("Название", value: party.displayName) { value in
-                    var next = party
-                    next.displayName = value
-                    onUpdate(next)
-                }
-                partyTextField("Полное наименование", value: party.fullName) { value in
-                    var next = party
-                    next.fullName = value
-                    onUpdate(next)
-                }
-                partyTextField("ИНН", value: party.taxID) { value in
-                    var next = party
-                    next.taxID = value
-                    onUpdate(next)
-                }
-                partyTextField("КПП / ОГРН", value: party.registrationNumber) { value in
-                    var next = party
-                    next.registrationNumber = value
-                    onUpdate(next)
-                }
-                partyTextField("Адрес", value: party.address) { value in
-                    var next = party
-                    next.address = value
-                    onUpdate(next)
-                }
-                partyTextField("Банк", value: party.bankName) { value in
-                    var next = party
-                    next.bankName = value
-                    onUpdate(next)
-                }
-                partyTextField("Расчетный счет", value: party.bankAccount) { value in
-                    var next = party
-                    next.bankAccount = value
-                    onUpdate(next)
-                }
-                partyTextField("БИК", value: party.bankCode) { value in
-                    var next = party
-                    next.bankCode = value
-                    onUpdate(next)
-                }
-            }
+    func readOnlyBuyerDetails(_ party: DocumentParty) -> some View {
+        VStack(spacing: 0) {
+            readOnlyDetailRow(title: "Полное", value: party.fullName)
+            readOnlyDivider
+            readOnlyDetailRow(title: "ИНН", value: party.taxID)
+            readOnlyDivider
+            readOnlyDetailRow(title: "КПП / ОГРН", value: party.registrationNumber)
+            readOnlyDivider
+            readOnlyDetailRow(title: "Адрес", value: party.address)
         }
+        .padding(.bottom, AppSpacing.xs)
+        .background(Color.black.opacity(0.025))
     }
 
     var sellerOrganizationBlock: some View {
@@ -710,7 +674,7 @@ private extension DocumentEditorScreen {
         return HStack(alignment: .top, spacing: AppSpacing.sm) {
             Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                 .font(.system(size: 21, weight: .semibold))
-                .foregroundStyle(isSelected ? AppColor.Brand.primary : AppColor.Text.secondary)
+                .foregroundStyle(isSelected ? Color.green : AppColor.Text.secondary)
                 .frame(width: 30, height: 30)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -1129,9 +1093,7 @@ private extension DocumentEditorScreen {
                         }
 
                         calculationField(title: "Ед.") {
-                            textField("", value: currentItem(for: item).unit) {
-                                viewModel.updateItemUnit(id: item.id, unit: $0)
-                            }
+                            unitPicker(for: item)
                         }
 
                         calculationField(title: "Цена") {
@@ -1162,17 +1124,61 @@ private extension DocumentEditorScreen {
         }
     }
 
-    func textField(
-        _ title: String,
-        value: String,
-        onChange: @escaping (String) -> Void
-    ) -> some View {
-        TextField(title, text: Binding(get: { value }, set: onChange))
+    func unitPicker(for item: DocumentItem) -> some View {
+        let selectedUnit = currentItem(for: item).unit
+        let isCustomUnit = viewModel.availableUnits.contains { $0.shortName == selectedUnit } == false
+
+        return Menu {
+            ForEach(viewModel.availableUnits) { unit in
+                Button {
+                    viewModel.updateItemUnit(id: item.id, unit: unit)
+                } label: {
+                    if selectedUnit == unit.shortName {
+                        Label("\(unit.fullName) (\(unit.shortName))", systemImage: "checkmark")
+                    } else {
+                        Text("\(unit.fullName) (\(unit.shortName))")
+                    }
+                }
+            }
+
+            Divider()
+
+            Button {
+                beginCustomUnitEditing(itemID: item.id, currentValue: isCustomUnit ? selectedUnit : "")
+            } label: {
+                Label(isCustomUnit ? "Изменить свою единицу" : "Своя единица", systemImage: "pencil")
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(selectedUnit)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(AppColor.Text.secondary)
+            }
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(AppColor.Text.primary)
             .padding(.horizontal, AppSpacing.sm)
             .frame(height: 42)
             .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    func beginCustomUnitEditing(itemID: UUID, currentValue: String) {
+        customUnitItemID = itemID
+        customUnitText = currentValue
+        isCustomUnitAlertPresented = true
+    }
+
+    func saveCustomUnit() {
+        guard let customUnitItemID else { return }
+        viewModel.updateCustomItemUnit(id: customUnitItemID, unit: customUnitText)
+        self.customUnitItemID = nil
+        customUnitText = ""
     }
 
     func decimalField(

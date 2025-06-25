@@ -137,38 +137,20 @@ private extension HomeScreen {
 
     var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            sectionHeader("Быстро создать", showsAll: false)
+            sectionHeader("Быстро создать пакет документов", showsAll: false)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.md) {
-                    quickActionButton(
-                        metric: FinanceMetric(
-                            title: "Создать счёт",
-                            amount: "Счёт",
-                            style: .income
-                        )
-                    ) {
-                        viewModel.didTapCreateDocument(type: .invoice)
-                    }
-
-                    quickActionButton(
-                        metric: FinanceMetric(
-                            title: "Создать акт",
-                            amount: "Акт",
-                            style: .pending
-                        )
-                    ) {
-                        viewModel.didTapCreateDocument(type: .act)
-                    }
-
-                    quickActionButton(
-                        metric: FinanceMetric(
-                            title: "Счёт-фактура",
-                            amount: "Фактура",
-                            style: .debt
-                        )
-                    ) {
-                        viewModel.didTapCreateDocument(type: .deliveryNote)
+                    ForEach(Array(DealType.allCases.enumerated()), id: \.element.id) { index, type in
+                        quickActionButton(
+                            metric: FinanceMetric(
+                                title: type.title,
+                                amount: "Пакет",
+                                style: dealMetricStyle(index)
+                            )
+                        ) {
+                            viewModel.didTapCreateDeal(type: type)
+                        }
                     }
                 }
                 .padding(.horizontal, AppSpacing.md)
@@ -189,7 +171,8 @@ private extension HomeScreen {
                         amount: document.amount,
                         statusTitle: document.statusTitle,
                         statusAmount: document.statusAmount,
-                        statusStyle: document.statusStyle
+                        statusStyle: document.statusStyle,
+                        isDraft: document.isDraft
                     )
                     .onTapGesture {
                         viewModel.didTapDocument(id: document.id)
@@ -243,6 +226,8 @@ private extension HomeScreen {
 
     var emptyStateView: some View {
         VStack(spacing: AppSpacing.lg) {
+            quickActionsSection
+
             MaterialCard {
                 VStack(spacing: AppSpacing.md) {
                     Image(systemName: "doc.badge.plus")
@@ -259,9 +244,9 @@ private extension HomeScreen {
                         .multilineTextAlignment(.center)
 
                     Button {
-                        viewModel.didTapCreateDocument(type: .invoice)
+                        viewModel.didTapCreateDeal(type: .services)
                     } label: {
-                        Text("Создать счёт")
+                        Text("Создать сделку")
                             .font(AppFont.Control.button)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, AppSpacing.md)
@@ -271,8 +256,8 @@ private extension HomeScreen {
                     .foregroundStyle(.black)
                 }
             }
+            .padding(.horizontal, AppSpacing.md)
         }
-        .padding(.horizontal, AppSpacing.md)
     }
 
     func errorStateView(message: String) -> some View {
@@ -453,6 +438,14 @@ private extension HomeScreen {
         .disabled(isEnabled == false)
     }
 
+    func dealMetricStyle(_ index: Int) -> FinanceMetricStyle {
+        switch index % 3 {
+        case 0: return .income
+        case 1: return .pending
+        default: return .debt
+        }
+    }
+
     func organizationRow(_ organization: TopOrganizationMetric) -> some View {
         Button {
             viewModel.didTapOrganization(organization)
@@ -578,6 +571,7 @@ private final class PreviewDocumentsRouter: HomeCoordinatorProtocol {
 
     func start() { }
     func showCreateDocument(type: DocumentType) { }
+    func showCreateDeal(type: DealType) { }
     func showDuplicateDocument(_ document: BusinessDocument) { }
     func showEditDocument(document: BusinessDocument) { }
     func showPreview(document: BusinessDocument) { }

@@ -19,7 +19,8 @@ struct DocumentsListItemMapper {
             statusStyle: statusStyle(for: document.status),
             footerText: footerText(for: document),
             primaryActionTitle: primaryActionTitle(for: document),
-            secondaryActionTitle: secondaryActionTitle(for: document)
+            secondaryActionTitle: secondaryActionTitle(for: document),
+            isDraft: document.status == .draft
         )
     }
 
@@ -53,11 +54,8 @@ struct DocumentsListItemMapper {
         let typeName = document.type.displayName
         let number = document.number.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard number.isEmpty == false else {
-            return "\(typeName) без номера"
-        }
+        return number.isEmpty ? "\(typeName) без номера" : "\(typeName) №\(number)"
 
-        return "\(typeName) №\(number)"
     }
 
     private func counterpartyName(for document: BusinessDocument) -> String {

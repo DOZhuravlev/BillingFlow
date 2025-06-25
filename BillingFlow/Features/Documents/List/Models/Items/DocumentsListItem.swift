@@ -13,6 +13,7 @@ struct DocumentsListItem: Identifiable, Equatable {
     let footerText: String
     let primaryActionTitle: String?
     let secondaryActionTitle: String?
+    let isDraft: Bool
 }
 
 extension DocumentsListItem {

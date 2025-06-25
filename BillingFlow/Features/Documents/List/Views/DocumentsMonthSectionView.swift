@@ -11,18 +11,15 @@ struct DocumentsMonthSectionView: View {
 
             LazyVStack(spacing: 12) {
                 ForEach(section.items) { row in
-                    Button {
-                        onDocumentTap(row.document)
-                    } label: {
-                        documentCard(for: row.item)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
+                    DocumentsSwipeRow(
+                        onTap: {
+                            onDocumentTap(row.document)
+                        },
+                        onDelete: {
                             onDocumentDelete(row.document)
-                        } label: {
-                            Label("Удалить", systemImage: "trash")
                         }
+                    ) {
+                        documentCard(for: row.item)
                     }
                 }
             }
@@ -51,7 +48,8 @@ struct DocumentsMonthSectionView: View {
             amount: item.amountText,
             statusTitle: "Статус",
             statusAmount: item.statusText,
-            statusStyle: statusPillStyle(for: item.statusStyle)
+            statusStyle: statusPillStyle(for: item.statusStyle),
+            isDraft: item.isDraft
         )
     }
 
@@ -65,6 +63,110 @@ struct DocumentsMonthSectionView: View {
 
         case .neutral, .warning:
             return .neutral
+        }
+    }
+}
+
+private struct DocumentsSwipeRow<Content: View>: View {
+
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    let content: Content
+
+    @State private var offset: CGFloat = 0
+    @State private var dragStartOffset: CGFloat = 0
+    @State private var isDraggingHorizontally = false
+
+    private let actionWidth: CGFloat = 82
+
+    init(
+        onTap: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.onTap = onTap
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            deleteAction
+                .frame(width: revealedActionWidth, alignment: .trailing)
+                .clipped()
+                .allowsHitTesting(revealedActionWidth >= actionWidth * 0.9)
+
+            Button {
+                if offset < 0 {
+                    closeActions()
+                } else {
+                    onTap()
+                }
+            } label: {
+                content
+            }
+            .buttonStyle(.plain)
+            .offset(x: offset)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        .contentShape(Rectangle())
+        .simultaneousGesture(swipeGesture)
+    }
+
+    private var deleteAction: some View {
+        Button(role: .destructive) {
+            closeActions()
+            onDelete()
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text("Удалить")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(width: actionWidth)
+            .frame(maxHeight: .infinity)
+            .background(Color.red)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var revealedActionWidth: CGFloat {
+        min(actionWidth, max(0, -offset))
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                let horizontalDistance = abs(value.translation.width)
+                let verticalDistance = abs(value.translation.height)
+                guard horizontalDistance > verticalDistance else { return }
+
+                if isDraggingHorizontally == false {
+                    dragStartOffset = offset
+                    isDraggingHorizontally = true
+                }
+
+                offset = min(0, max(-actionWidth, dragStartOffset + value.translation.width))
+            }
+            .onEnded { value in
+                defer { isDraggingHorizontally = false }
+
+                let horizontalDistance = abs(value.translation.width)
+                let verticalDistance = abs(value.translation.height)
+                guard horizontalDistance > verticalDistance else { return }
+
+                withAnimation(.easeOut(duration: 0.18)) {
+                    offset = offset < -actionWidth * 0.35 ? -actionWidth : 0
+                }
+            }
+    }
+
+    private func closeActions() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            offset = 0
         }
     }
 }

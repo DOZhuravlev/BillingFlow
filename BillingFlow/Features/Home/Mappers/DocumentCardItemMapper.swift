@@ -16,7 +16,8 @@ struct DocumentCardItemMapper {
             ),
             statusTitle: "Статус",
             statusAmount: statusText(for: document.status),
-            statusStyle: statusStyle(for: document.status)
+            statusStyle: statusStyle(for: document.status),
+            isDraft: document.status == .draft
         )
     }
 

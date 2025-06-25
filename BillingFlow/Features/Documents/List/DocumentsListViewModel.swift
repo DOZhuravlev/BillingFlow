@@ -148,9 +148,7 @@ extension DocumentsListViewModel {
         documentPendingDeletion = nil
     }
 
-    func confirmDeleteDocument() async {
-        guard let document = documentPendingDeletion else { return }
-
+    func confirmDeleteDocument(_ document: BusinessDocument) async {
         documentPendingDeletion = nil
 
         do {
