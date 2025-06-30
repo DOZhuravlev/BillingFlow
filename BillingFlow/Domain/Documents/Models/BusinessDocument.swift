@@ -1,6 +1,6 @@
 import Foundation
 
-struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var type: DocumentType
     var number: String
@@ -12,6 +12,7 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
     var currencyCode: String
     var status: DocumentStatus
     var paidAt: Date?
+    var paymentReminderDate: Date?
     var dealID: UUID?
     var draftStepRawValue: Int?
     var updatedAt: Date?
@@ -40,6 +41,7 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
         currencyCode: String = "RUB",
         status: DocumentStatus = .draft,
         paidAt: Date? = nil,
+        paymentReminderDate: Date? = nil,
         dealID: UUID? = nil,
         draftStepRawValue: Int? = nil,
         updatedAt: Date? = nil
@@ -55,6 +57,7 @@ struct BusinessDocument: Identifiable, Codable, Hashable, Sendable {
         self.currencyCode = currencyCode
         self.status = status
         self.paidAt = paidAt
+        self.paymentReminderDate = paymentReminderDate
         self.dealID = dealID
         self.draftStepRawValue = draftStepRawValue
         self.updatedAt = updatedAt

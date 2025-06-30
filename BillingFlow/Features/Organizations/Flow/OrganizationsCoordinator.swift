@@ -28,7 +28,8 @@ final class OrganizationsCoordinator: NSObject, DocumentsCoordinatorProtocol {
         let viewModel = OrganizationsViewModel(
             organizationsRepository: dependencies.organizationsRepository,
             documentsRepository: dependencies.documentsRepository,
-            documentEventsStore: dependencies.documentEventsStore
+            documentEventsStore: dependencies.documentEventsStore,
+            organizationEventsStore: dependencies.organizationEventsStore
         )
         let view = OrganizationsScreen(
             viewModel: viewModel,

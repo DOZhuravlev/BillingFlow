@@ -240,8 +240,8 @@ extension OrganizationProfileSettingsViewModel {
             updatedOrganization.isDefault = true
             updatedOrganization.updatedAt = Date()
 
-            try await organizationsRepository.save(organization: updatedOrganization)
             try await clearDefaultFlag(except: updatedOrganization.id)
+            try await organizationsRepository.save(organization: updatedOrganization)
             await load()
 
             if let storedOrganization = organizations.first(where: { $0.id == updatedOrganization.id }) {
@@ -264,11 +264,11 @@ extension OrganizationProfileSettingsViewModel {
 
         do {
             let organization = makeOrganization()
-            try await organizationsRepository.save(organization: organization)
 
             if organization.isDefault {
                 try await clearDefaultFlag(except: organization.id)
             }
+            try await organizationsRepository.save(organization: organization)
 
             await load()
             selectOrganization(organization)

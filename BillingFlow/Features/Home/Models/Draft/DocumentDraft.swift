@@ -12,6 +12,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
     var notes: String
     var currencyCode: String
     var sourceDocumentID: UUID?
+    var paymentReminderDate: Date?
     var dealID: UUID?
     var updatedAt: Date
 
@@ -38,6 +39,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
         notes: String = "",
         currencyCode: String = "RUB",
         sourceDocumentID: UUID? = nil,
+        paymentReminderDate: Date? = nil,
         dealID: UUID? = nil,
         updatedAt: Date = Date()
     ) {
@@ -51,6 +53,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
         self.notes = notes
         self.currencyCode = currencyCode
         self.sourceDocumentID = sourceDocumentID
+        self.paymentReminderDate = paymentReminderDate
         self.dealID = dealID
         self.updatedAt = updatedAt
     }
@@ -70,6 +73,7 @@ struct DocumentDraft: Identifiable, Codable, Hashable, Sendable {
             notes: notes,
             currencyCode: currencyCode,
             status: status,
+            paymentReminderDate: paymentReminderDate,
             dealID: dealID,
             draftStepRawValue: draftStepRawValue,
             updatedAt: updatedAt

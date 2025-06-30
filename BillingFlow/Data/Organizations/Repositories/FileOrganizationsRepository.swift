@@ -1,6 +1,6 @@
 import Foundation
 
-actor FileOrganizationsRepository: OrganizationsRepositoryProtocol {
+nonisolated actor FileOrganizationsRepository: OrganizationsRepositoryProtocol {
 
     // MARK: - Dependencies
 
@@ -42,6 +42,10 @@ actor FileOrganizationsRepository: OrganizationsRepositoryProtocol {
     func deleteOrganization(id: UUID) async throws {
         var organizations = try loadOrganizationsIfNeeded()
         organizations.removeAll { $0.id == id }
+        try persistOrganizations(organizations)
+    }
+
+    func replaceOrganizations(_ organizations: [Organization]) async throws {
         try persistOrganizations(organizations)
     }
 
@@ -104,7 +108,7 @@ private extension FileOrganizationsRepository {
         cachedOrganizations = organizations
     }
 
-    static func makeBankAccounts(from party: DocumentParty) -> [OrganizationBankAccount] {
+    nonisolated static func makeBankAccounts(from party: DocumentParty) -> [OrganizationBankAccount] {
         let account = OrganizationBankAccount(
             bankName: party.bankName,
             bankAccount: party.bankAccount,
@@ -115,7 +119,7 @@ private extension FileOrganizationsRepository {
         return account.isEmpty ? [] : [account]
     }
 
-    static func shouldInsertOrganization(role: Organization.Role) -> Bool {
+    nonisolated static func shouldInsertOrganization(role: Organization.Role) -> Bool {
         switch role {
         case .seller:
             return false
@@ -124,7 +128,7 @@ private extension FileOrganizationsRepository {
         }
     }
 
-    static func updatedParty(
+    nonisolated static func updatedParty(
         existing: Organization,
         incoming: DocumentParty,
         role: Organization.Role
@@ -136,7 +140,7 @@ private extension FileOrganizationsRepository {
         return incoming
     }
 
-    static func mergedRole(
+    nonisolated static func mergedRole(
         existing: Organization.Role,
         incoming: Organization.Role
     ) -> Organization.Role {
@@ -147,7 +151,7 @@ private extension FileOrganizationsRepository {
         return .mixed
     }
 
-    static func defaultBankAccountID(
+    nonisolated static func defaultBankAccountID(
         existingID: UUID?,
         accounts: [OrganizationBankAccount]
     ) -> UUID? {
@@ -159,7 +163,7 @@ private extension FileOrganizationsRepository {
         return accounts.first(where: \.isDefault)?.id ?? accounts.first?.id
     }
 
-    static func mergedBankAccounts(
+    nonisolated static func mergedBankAccounts(
         existing: [OrganizationBankAccount],
         incoming: [OrganizationBankAccount]
     ) -> [OrganizationBankAccount] {
@@ -176,7 +180,7 @@ private extension FileOrganizationsRepository {
         return result
     }
 
-    static func isSameBankAccount(
+    nonisolated static func isSameBankAccount(
         _ lhs: OrganizationBankAccount,
         _ rhs: OrganizationBankAccount
     ) -> Bool {
@@ -195,7 +199,7 @@ private extension FileOrganizationsRepository {
 }
 
 private extension String {
-    var normalizedOrganizationText: String {
+    nonisolated var normalizedOrganizationText: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
     }

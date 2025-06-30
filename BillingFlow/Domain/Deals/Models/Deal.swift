@@ -1,6 +1,6 @@
 import Foundation
 
-struct Deal: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct Deal: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var title: String
     var type: DealType

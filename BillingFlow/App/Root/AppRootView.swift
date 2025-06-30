@@ -61,6 +61,8 @@ struct AppRootView: View {
         }
         .task {
             appCoordinator.start()
+            dependencies.syncCoordinator.start()
+            dependencies.notificationCoordinator.start()
         }
     }
 

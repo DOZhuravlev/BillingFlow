@@ -51,11 +51,13 @@ final class OrganizationsViewModel: ObservableObject {
     init(
         organizationsRepository: OrganizationsRepositoryProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
-        documentEventsStore: DocumentEventsStore? = nil
+        documentEventsStore: DocumentEventsStore? = nil,
+        organizationEventsStore: OrganizationEventsStore? = nil
     ) {
         self.organizationsRepository = organizationsRepository
         self.documentsRepository = documentsRepository
         bindDocumentEvents(documentEventsStore)
+        bindOrganizationEvents(organizationEventsStore)
     }
 }
 
@@ -65,6 +67,15 @@ private extension OrganizationsViewModel {
     func bindDocumentEvents(_ documentEventsStore: DocumentEventsStore?) {
         documentEventsStore?
             .documentsDidChangePublisher
+            .sink { [weak self] in
+                self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
+    }
+
+    func bindOrganizationEvents(_ organizationEventsStore: OrganizationEventsStore?) {
+        organizationEventsStore?
+            .organizationsDidChangePublisher
             .sink { [weak self] in
                 self?.handleDocumentsDidChange()
             }

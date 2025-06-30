@@ -195,6 +195,14 @@ extension DocumentEditorViewModel {
         documentValidator.validate(document: readyDocument).isValid
     }
 
+    var isPaymentReminderEnabled: Bool {
+        draft.paymentReminderDate != nil
+    }
+
+    var paymentReminderDate: Date {
+        draft.paymentReminderDate ?? Self.defaultPaymentReminderDate()
+    }
+
     var isEditing: Bool {
         if case .edit = mode {
             return true
@@ -793,6 +801,18 @@ extension DocumentEditorViewModel {
         updateDraft { $0.notes = notes }
     }
 
+    func setPaymentReminderEnabled(_ isEnabled: Bool) {
+        updateDraft { draft in
+            draft.paymentReminderDate = isEnabled
+                ? draft.paymentReminderDate ?? Self.defaultPaymentReminderDate()
+                : nil
+        }
+    }
+
+    func updatePaymentReminderDate(_ date: Date) {
+        updateDraft { $0.paymentReminderDate = date }
+    }
+
     func updateDate(_ date: Date) {
         updateDraft { $0.date = date }
     }
@@ -958,6 +978,7 @@ private extension DocumentEditorViewModel {
             notes: document.notes,
             currencyCode: document.currencyCode,
             sourceDocumentID: nil,
+            paymentReminderDate: document.paymentReminderDate,
             dealID: document.dealID,
             updatedAt: document.updatedAt ?? Date()
         )
@@ -1120,6 +1141,7 @@ extension DocumentEditorViewModel {
     func persistDraftNow() async {
         draftSaveTask?.cancel()
         await persistDraft()
+        await documentsRepository.flushPendingChanges()
     }
 }
 
@@ -1176,5 +1198,11 @@ private extension DocumentEditorViewModel {
             guard let index = draft.items.firstIndex(where: { $0.id == id }) else { return }
             updates(&draft.items[index])
         }
+    }
+
+    static func defaultPaymentReminderDate() -> Date {
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date().addingTimeInterval(86_400)
+        return calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow) ?? tomorrow
     }
 }

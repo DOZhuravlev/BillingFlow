@@ -4,10 +4,17 @@ struct NotificationSettingsScreen: View {
 
     // MARK: - State
 
-    @State private var notificationsEnabled = true
+    @ObservedObject private var preferences: NotificationPreferences
+    private let notificationCoordinator: AppNotificationCoordinator?
     let onBack: () -> Void
 
-    init(onBack: @escaping () -> Void = { }) {
+    init(
+        preferences: NotificationPreferences,
+        notificationCoordinator: AppNotificationCoordinator? = nil,
+        onBack: @escaping () -> Void = { }
+    ) {
+        self.preferences = preferences
+        self.notificationCoordinator = notificationCoordinator
         self.onBack = onBack
     }
 
@@ -24,7 +31,18 @@ struct NotificationSettingsScreen: View {
                     title: "Уведомления",
                     subtitle: "События по документам, срокам и настройкам",
                     iconName: "bell.fill",
-                    isOn: $notificationsEnabled
+                    isOn: Binding(
+                        get: { preferences.isEnabled },
+                        set: { isEnabled in
+                            Task {
+                                if let notificationCoordinator {
+                                    await notificationCoordinator.setNotificationsEnabled(isEnabled)
+                                } else {
+                                    preferences.setEnabled(isEnabled)
+                                }
+                            }
+                        }
+                    )
                 )
             }
         }
@@ -65,5 +83,5 @@ struct NotificationSettingsScreen: View {
 }
 
 #Preview {
-    NotificationSettingsScreen()
+    NotificationSettingsScreen(preferences: NotificationPreferences())
 }

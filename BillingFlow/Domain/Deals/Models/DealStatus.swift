@@ -1,6 +1,6 @@
 import Foundation
 
-enum DealStatus: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+nonisolated enum DealStatus: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case draft
     case preparingDocuments
     case invoiceIssued

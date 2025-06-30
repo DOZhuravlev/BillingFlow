@@ -5,6 +5,9 @@ struct ProfileScreen: View {
     // MARK: - State
 
     @StateObject private var viewModel: ProfileViewModel
+    @ObservedObject private var authController: AuthController
+    @State private var isAuthPresented = false
+    @State private var isLogoutConfirmationPresented = false
 
     // MARK: - Actions
 
@@ -16,11 +19,13 @@ struct ProfileScreen: View {
 
     init(
         viewModel: ProfileViewModel,
+        authController: AuthController,
         onOrganizationProfile: @escaping () -> Void = { },
         onSignatureAndStamp: @escaping () -> Void = { },
         onNotifications: @escaping () -> Void = { }
     ) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        self.authController = authController
         self.onOrganizationProfile = onOrganizationProfile
         self.onSignatureAndStamp = onSignatureAndStamp
         self.onNotifications = onNotifications
@@ -35,6 +40,7 @@ struct ProfileScreen: View {
             ScrollView {
                 VStack(spacing: AppSpacing.lg) {
                     headerSection
+                    accountSection
                     settingsListSection
                     versionSection
                 }
@@ -47,6 +53,19 @@ struct ProfileScreen: View {
         .onAppear {
             Task {
                 await viewModel.load()
+            }
+        }
+        .task {
+            guard authController.isRestoring else { return }
+            await authController.restore()
+        }
+        .sheet(isPresented: $isAuthPresented) {
+            PhoneAuthScreen(authController: authController)
+        }
+        .alert("Выйти из аккаунта?", isPresented: $isLogoutConfirmationPresented) {
+            Button("Отмена", role: .cancel) { }
+            Button("Выйти", role: .destructive) {
+                Task { await authController.logout() }
             }
         }
     }
@@ -118,6 +137,36 @@ private extension ProfileScreen {
 
 private extension ProfileScreen {
 
+    var accountSection: some View {
+        settingsSection(title: "Аккаунт") {
+            if authController.isRestoring {
+                HStack(spacing: AppSpacing.sm) {
+                    ProgressView()
+                    Text("Проверяем сессию")
+                        .font(AppFont.Text.body)
+                        .foregroundStyle(AppColor.Text.secondary)
+                }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let user = authController.user {
+                settingsRow(
+                    title: user.phone,
+                    subtitle: "Аккаунт BillingFlow",
+                    iconName: "person.crop.circle.fill",
+                    trailingIconName: "rectangle.portrait.and.arrow.right",
+                    action: { isLogoutConfirmationPresented = true }
+                )
+            } else {
+                settingsRow(
+                    title: "Войти по номеру телефона",
+                    subtitle: "Аккаунт BillingFlow",
+                    iconName: "person.crop.circle.badge.plus",
+                    action: { isAuthPresented = true }
+                )
+            }
+        }
+    }
+
     var settingsListSection: some View {
         settingsSection(title: "Настройки") {
             settingsRow(
@@ -175,6 +224,7 @@ private extension ProfileScreen {
         title: String,
         subtitle: String,
         iconName: String,
+        trailingIconName: String = "chevron.right",
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -202,7 +252,7 @@ private extension ProfileScreen {
 
                 Spacer(minLength: AppSpacing.sm)
 
-                Image(systemName: "chevron.right")
+                Image(systemName: trailingIconName)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(AppColor.Text.secondary)
             }
@@ -230,7 +280,18 @@ private extension ProfileScreen {
 }
 
 #Preview {
-    ProfileScreen(viewModel: ProfileViewModel(organizationsRepository: PreviewProfileOrganizationsRepository()))
+    let baseURL = URL(string: "https://example.com")!
+    let session = AuthSession(
+        baseURL: baseURL,
+        keychain: KeychainStore(service: "com.my.BillingFlow.preview")
+    )
+    ProfileScreen(
+        viewModel: ProfileViewModel(organizationsRepository: PreviewProfileOrganizationsRepository()),
+        authController: AuthController(
+            authService: RemoteAuthService(apiClient: APIClient(baseURL: baseURL), authSession: session),
+            authSession: session
+        )
+    )
 }
 
 private actor PreviewProfileOrganizationsRepository: OrganizationsRepositoryProtocol {

@@ -28,7 +28,8 @@ final class HomeCoordinator: NSObject, HomeCoordinatorProtocol, DocumentsCoordin
         let viewModel = HomeViewModel(coordinator: self,
                                       documentsRepository: dependencies.documentsRepository,
                                       organizationsRepository: dependencies.organizationsRepository,
-                                      documentEventsStore: dependencies.documentEventsStore
+                                      documentEventsStore: dependencies.documentEventsStore,
+                                      organizationEventsStore: dependencies.organizationEventsStore
         )
 
         let view = HomeScreen(viewModel: viewModel)

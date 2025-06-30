@@ -1,6 +1,6 @@
 import Foundation
 
-enum DealType: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+nonisolated enum DealType: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case services
     case goods
     case goodsAndServices

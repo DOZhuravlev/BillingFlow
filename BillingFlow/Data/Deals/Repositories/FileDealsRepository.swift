@@ -1,6 +1,6 @@
 import Foundation
 
-actor FileDealsRepository: DealsRepositoryProtocol {
+nonisolated actor FileDealsRepository: DealsRepositoryProtocol {
     private let store: LocalDealsStore
     private var cache: [Deal]?
 
@@ -29,6 +29,10 @@ actor FileDealsRepository: DealsRepositoryProtocol {
     func deleteDeal(id: UUID) async throws {
         var deals = try load()
         deals.removeAll { $0.id == id }
+        try persist(deals)
+    }
+
+    func replaceDeals(_ deals: [Deal]) async throws {
         try persist(deals)
     }
 

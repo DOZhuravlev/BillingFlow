@@ -80,16 +80,36 @@ struct DealCreateScreen: View {
     private var counterpartyStep: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             stepTitle("Контрагент", subtitle: "С кем оформляем сделку")
-            if viewModel.counterparties.isEmpty {
-                MaterialCard { Text("Контрагентов пока нет. Сначала создайте документ с организацией или добавьте ее в профиле контрагента.").font(AppFont.Text.caption).foregroundStyle(AppColor.Text.secondary) }
-            } else {
+
+            organizationSearch
+
+            if viewModel.counterparty.isEmpty == false,
+               viewModel.counterparties.contains(where: { $0.party == viewModel.counterparty }) == false {
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Выбрано")
+                        .font(AppFont.Text.caption)
+                        .foregroundStyle(.white.opacity(0.72))
+                    MaterialCard(padding: 0) {
+                        counterpartyChoiceRow(
+                            title: viewModel.counterparty.displayName,
+                            taxID: viewModel.counterparty.taxID,
+                            selected: true,
+                            action: { }
+                        )
+                    }
+                }
+            }
+
+            if viewModel.counterparties.isEmpty == false {
+                Text("Недавние контрагенты")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(.white.opacity(0.72))
                 MaterialCard(padding: 0) {
                     VStack(spacing: 0) {
                         ForEach(viewModel.counterparties) { organization in
-                            choiceRow(
+                            counterpartyChoiceRow(
                                 title: organization.party.displayName,
-                                subtitle: organization.party.taxID.isEmpty ? "ИНН не указан" : "ИНН \(organization.party.taxID)",
-                                icon: "building.2.fill",
+                                taxID: organization.party.taxID,
                                 selected: viewModel.counterparty == organization.party
                             ) { viewModel.selectCounterparty(organization) }
                             if organization.id != viewModel.counterparties.last?.id { divider }
@@ -98,6 +118,123 @@ struct DealCreateScreen: View {
                 }
             }
         }
+    }
+
+    private var organizationSearch: some View {
+        MaterialCard {
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                Text("Найти по ИНН или названию")
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(AppColor.Text.secondary)
+
+                    TextField("7707083893 или Сбербанк", text: Binding(
+                        get: { viewModel.organizationSearchQuery },
+                        set: viewModel.updateOrganizationSearchQuery
+                    ))
+                    .font(.system(size: 16, weight: .medium))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                    if viewModel.isSearchingOrganizations {
+                        ProgressView().tint(AppColor.Brand.primary)
+                    } else if viewModel.organizationSearchQuery.isEmpty == false {
+                        Button(action: viewModel.resetOrganizationSearch) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(AppColor.Text.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .frame(height: 46)
+                .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.sm))
+
+                organizationSearchState
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var organizationSearchState: some View {
+        if let message = viewModel.organizationSearchErrorMessage {
+            Text(message)
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Status.danger)
+        } else if viewModel.organizationSearchResults.isEmpty == false {
+            VStack(spacing: 0) {
+                ForEach(viewModel.organizationSearchResults) { suggestion in
+                    Button { viewModel.selectCounterparty(suggestion) } label: {
+                        organizationSuggestionRow(suggestion)
+                    }
+                    .buttonStyle(.plain)
+
+                    if suggestion.id != viewModel.organizationSearchResults.last?.id { divider }
+                }
+            }
+            .background(Color.black.opacity(0.035), in: RoundedRectangle(cornerRadius: AppRadius.sm))
+        } else if viewModel.organizationSearchQuery.isEmpty == false &&
+                    viewModel.organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+            Text("Введите минимум 3 символа")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+        } else if viewModel.organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 &&
+                    viewModel.isSearchingOrganizations == false {
+            Text("Ничего не найдено")
+                .font(AppFont.Text.caption)
+                .foregroundStyle(AppColor.Text.secondary)
+        }
+    }
+
+    private func organizationSuggestionRow(_ suggestion: OrganizationSuggestion) -> some View {
+        HStack(alignment: .top, spacing: AppSpacing.sm) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(suggestion.preferredDisplayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColor.Text.primary)
+                    .lineLimit(2)
+
+                Text(organizationSuggestionSubtitle(suggestion))
+                    .font(AppFont.Text.caption)
+                    .foregroundStyle(AppColor.Text.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: AppSpacing.sm)
+
+            Image(systemName: "plus.circle")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(AppColor.Brand.primary)
+        }
+        .padding(AppSpacing.md)
+    }
+
+    private func organizationSuggestionSubtitle(_ suggestion: OrganizationSuggestion) -> String {
+        [
+            suggestion.inn.isEmpty ? nil : "ИНН \(suggestion.inn)",
+            suggestion.kpp.isEmpty ? nil : "КПП \(suggestion.kpp)",
+            suggestion.address.isEmpty ? nil : suggestion.address
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
+    }
+
+    private func counterpartyChoiceRow(
+        title: String,
+        taxID: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        choiceRow(
+            title: title,
+            subtitle: taxID.isEmpty ? "ИНН не указан" : "ИНН \(taxID)",
+            icon: "building.2.fill",
+            selected: selected,
+            action: action
+        )
     }
 
     private var detailsStep: some View {

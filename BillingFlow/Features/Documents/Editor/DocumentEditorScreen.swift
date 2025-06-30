@@ -6,8 +6,6 @@ struct DocumentEditorScreen: View {
 
     @StateObject private var viewModel: DocumentEditorViewModel
     @Environment(\.scenePhase) private var scenePhase
-    @State private var isPaymentReminderDesignEnabled = false
-    @State private var paymentReminderDate = Date()
     @State private var isSellerDetailsExpanded = false
     @State private var expandedBuyerOrganizationID: String?
     @State private var isCustomUnitAlertPresented = false
@@ -1287,12 +1285,18 @@ private extension DocumentEditorScreen {
 
                     Spacer(minLength: AppSpacing.sm)
 
-                    Toggle("", isOn: $isPaymentReminderDesignEnabled)
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { viewModel.isPaymentReminderEnabled },
+                            set: viewModel.setPaymentReminderEnabled
+                        )
+                    )
                         .labelsHidden()
                         .tint(AppColor.Brand.primary)
                 }
 
-                if isPaymentReminderDesignEnabled {
+                if viewModel.isPaymentReminderEnabled {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
                         Text("Дата и время напоминания")
                             .font(AppFont.Text.caption)
@@ -1335,7 +1339,10 @@ private extension DocumentEditorScreen {
 
             DatePicker(
                 "",
-                selection: $paymentReminderDate,
+                selection: Binding(
+                    get: { viewModel.paymentReminderDate },
+                    set: viewModel.updatePaymentReminderDate
+                ),
                 displayedComponents: components
             )
             .labelsHidden()

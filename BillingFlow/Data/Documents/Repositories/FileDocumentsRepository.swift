@@ -1,6 +1,6 @@
 import Foundation
 
-actor FileDocumentsRepository: DocumentsRepositoryProtocol {
+nonisolated actor FileDocumentsRepository: DocumentsRepositoryProtocol {
 
     // MARK: - Dependencies
 
@@ -49,6 +49,10 @@ actor FileDocumentsRepository: DocumentsRepositoryProtocol {
     func deleteDocument(id: UUID) async throws {
         var documents = try loadDocumentsIfNeeded()
         documents.removeAll(where: { $0.id == id })
+        try persistDocuments(documents)
+    }
+
+    func replaceDocuments(_ documents: [BusinessDocument]) async throws {
         try persistDocuments(documents)
     }
 

@@ -25,11 +25,13 @@ final class ProfileCoordinator: NSObject {
         navigationController.setNavigationBarHidden(true, animated: false)
 
         let viewModel = ProfileViewModel(
-            organizationsRepository: dependencies.organizationsRepository
+            organizationsRepository: dependencies.organizationsRepository,
+            organizationEventsStore: dependencies.organizationEventsStore
         )
 
         let view = ProfileScreen(
             viewModel: viewModel,
+            authController: dependencies.authController,
             onOrganizationProfile: { [weak self] in
                 self?.showOrganizationProfile()
             },
@@ -96,9 +98,13 @@ private extension ProfileCoordinator {
     func showNotificationSettings() {
         navigationController.setNavigationBarHidden(true, animated: false)
         push(
-            NotificationSettingsScreen(onBack: { [weak self] in
-                self?.pop()
-            }),
+            NotificationSettingsScreen(
+                preferences: dependencies.notificationPreferences,
+                notificationCoordinator: dependencies.notificationCoordinator,
+                onBack: { [weak self] in
+                    self?.pop()
+                }
+            ),
             title: "Уведомления"
         )
     }

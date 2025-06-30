@@ -8,8 +8,12 @@ struct LocalOrganizationsStore: Sendable {
 
     // MARK: - Initialization
 
-    nonisolated init(fileManager: FileManager = .default) {
-        self.fileURL = Self.makeFileURL(fileManager: fileManager)
+    nonisolated init(
+        fileManager: FileManager = .default,
+        directoryURL: URL? = nil
+    ) {
+        self.fileURL = (directoryURL ?? Self.makeRootDirectoryURL(fileManager: fileManager))
+            .appendingPathComponent("organizations.json", isDirectory: false)
     }
 
     // MARK: - Loading
@@ -48,7 +52,7 @@ private extension LocalOrganizationsStore {
         }
     }
 
-    nonisolated static func makeFileURL(fileManager: FileManager) -> URL {
+    nonisolated static func makeRootDirectoryURL(fileManager: FileManager) -> URL {
         let baseURL = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -61,9 +65,7 @@ private extension LocalOrganizationsStore {
             preconditionFailure("Unable to resolve a writable organizations directory.")
         }
 
-        return baseURL
-            .appendingPathComponent("BillingFlow", isDirectory: true)
-            .appendingPathComponent("organizations.json", isDirectory: false)
+        return baseURL.appendingPathComponent("BillingFlow", isDirectory: true)
     }
 
     nonisolated static func makeEncoder() -> JSONEncoder {

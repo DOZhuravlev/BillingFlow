@@ -12,25 +12,33 @@ final class DealCreateViewModel: ObservableObject {
     @Published var amountText = ""
     @Published var dueDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @Published private(set) var counterparties: [Organization] = []
+    @Published private(set) var organizationSearchResults: [OrganizationSuggestion] = []
+    @Published private(set) var isSearchingOrganizations = false
+    @Published private(set) var organizationSearchErrorMessage: String?
+    @Published var organizationSearchQuery = ""
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
 
     private weak var coordinator: DealsCoordinatorProtocol?
     private let dealsRepository: DealsRepositoryProtocol
     private let organizationsRepository: OrganizationsRepositoryProtocol
+    private let organizationSearchService: OrganizationSearchServiceProtocol
     private let dealEventsStore: DealEventsStore
+    private var organizationSearchTask: Task<Void, Never>?
 
     init(
         type: DealType,
         coordinator: DealsCoordinatorProtocol,
         dealsRepository: DealsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
+        organizationSearchService: OrganizationSearchServiceProtocol,
         dealEventsStore: DealEventsStore
     ) {
         self.type = type
         self.coordinator = coordinator
         self.dealsRepository = dealsRepository
         self.organizationsRepository = organizationsRepository
+        self.organizationSearchService = organizationSearchService
         self.dealEventsStore = dealEventsStore
     }
 
@@ -58,6 +66,44 @@ final class DealCreateViewModel: ObservableObject {
 
     func selectCounterparty(_ organization: Organization) {
         counterparty = organization.party
+        resetOrganizationSearch()
+    }
+
+    func selectCounterparty(_ suggestion: OrganizationSuggestion) {
+        counterparty = suggestion.party
+        resetOrganizationSearch()
+    }
+
+    func updateOrganizationSearchQuery(_ query: String) {
+        organizationSearchQuery = query
+        organizationSearchErrorMessage = nil
+        organizationSearchTask?.cancel()
+
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedQuery.count >= 3 else {
+            organizationSearchResults = []
+            isSearchingOrganizations = false
+            return
+        }
+
+        isSearchingOrganizations = true
+        organizationSearchTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 450_000_000)
+                await self?.performOrganizationSearch(query: trimmedQuery)
+            } catch {
+                await self?.finishCancelledSearch()
+            }
+        }
+    }
+
+    func resetOrganizationSearch() {
+        organizationSearchTask?.cancel()
+        organizationSearchTask = nil
+        organizationSearchQuery = ""
+        organizationSearchResults = []
+        organizationSearchErrorMessage = nil
+        isSearchingOrganizations = false
     }
 
     func next() async {
@@ -97,6 +143,29 @@ final class DealCreateViewModel: ObservableObject {
             coordinator?.finishDealCreation(deal)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func performOrganizationSearch(query: String) async {
+        guard Task.isCancelled == false else { return }
+
+        do {
+            let results = try await organizationSearchService.searchOrganizations(query: query)
+            guard Task.isCancelled == false else { return }
+            organizationSearchResults = results
+            organizationSearchErrorMessage = nil
+        } catch {
+            guard Task.isCancelled == false else { return }
+            organizationSearchResults = []
+            organizationSearchErrorMessage = error.localizedDescription
+        }
+
+        isSearchingOrganizations = false
+    }
+
+    private func finishCancelledSearch() {
+        if organizationSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+            isSearchingOrganizations = false
         }
     }
 }

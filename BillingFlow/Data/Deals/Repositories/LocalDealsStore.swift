@@ -3,11 +3,13 @@ import Foundation
 struct LocalDealsStore: Sendable {
     private let fileURL: URL
 
-    nonisolated init(fileManager: FileManager = .default) {
+    nonisolated init(
+        fileManager: FileManager = .default,
+        directoryURL: URL? = nil
+    ) {
         let baseURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        self.fileURL = baseURL
-            .appendingPathComponent("BillingFlow", isDirectory: true)
+        self.fileURL = (directoryURL ?? baseURL.appendingPathComponent("BillingFlow", isDirectory: true))
             .appendingPathComponent("deals.json", isDirectory: false)
     }
 

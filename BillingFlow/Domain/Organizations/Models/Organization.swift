@@ -1,6 +1,6 @@
 import Foundation
 
-struct Organization: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct Organization: Identifiable, Codable, Hashable, Sendable {
     enum Role: String, Codable, Sendable {
         case seller
         case buyer
@@ -94,7 +94,7 @@ extension Organization {
         case updatedAt
     }
 
-    init(from decoder: Decoder) throws {
+    nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         party = try container.decode(DocumentParty.self, forKey: .party)

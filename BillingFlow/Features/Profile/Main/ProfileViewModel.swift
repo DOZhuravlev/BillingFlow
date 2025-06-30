@@ -11,11 +11,21 @@ final class ProfileViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let organizationsRepository: OrganizationsRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
-    init(organizationsRepository: OrganizationsRepositoryProtocol) {
+    init(
+        organizationsRepository: OrganizationsRepositoryProtocol,
+        organizationEventsStore: OrganizationEventsStore? = nil
+    ) {
         self.organizationsRepository = organizationsRepository
+        organizationEventsStore?
+            .organizationsDidChangePublisher
+            .sink { [weak self] in
+                Task { await self?.load() }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Loading

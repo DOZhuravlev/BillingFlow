@@ -8,8 +8,12 @@ struct LocalDocumentsStore: Sendable {
 
     // MARK: - Initialization
 
-    nonisolated init(fileManager: FileManager = .default) {
-        self.fileURL = Self.makeFileURL(fileManager: fileManager)
+    nonisolated init(
+        fileManager: FileManager = .default,
+        directoryURL: URL? = nil
+    ) {
+        self.fileURL = (directoryURL ?? Self.makeRootDirectoryURL(fileManager: fileManager))
+            .appendingPathComponent("documents.json", isDirectory: false)
     }
 
     // MARK: - Loading Documents
@@ -46,7 +50,7 @@ struct LocalDocumentsStore: Sendable {
         }
     }
 
-    nonisolated private static func makeFileURL(fileManager: FileManager) -> URL {
+    nonisolated private static func makeRootDirectoryURL(fileManager: FileManager) -> URL {
         let baseURL = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -59,9 +63,7 @@ struct LocalDocumentsStore: Sendable {
             preconditionFailure("Unable to resolve a writable documents directory.")
         }
 
-        return baseURL
-            .appendingPathComponent("BillingFlow", isDirectory: true)
-            .appendingPathComponent("documents.json", isDirectory: false)
+        return baseURL.appendingPathComponent("BillingFlow", isDirectory: true)
     }
 
     nonisolated private static func makeEncoder() -> JSONEncoder {

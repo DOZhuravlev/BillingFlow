@@ -1,6 +1,6 @@
 import Foundation
 
-enum DocumentType: String, CaseIterable, Codable, Hashable, Sendable {
+nonisolated enum DocumentType: String, CaseIterable, Codable, Hashable, Sendable {
     case invoice
     case act
     case deliveryNote

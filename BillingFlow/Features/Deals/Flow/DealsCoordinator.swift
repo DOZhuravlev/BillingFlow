@@ -32,6 +32,7 @@ final class DealsCoordinator: NSObject, DealsCoordinatorProtocol, DocumentsCoord
             coordinator: self,
             dealsRepository: dependencies.dealsRepository,
             organizationsRepository: dependencies.organizationsRepository,
+            organizationSearchService: dependencies.organizationSearchService,
             dealEventsStore: dependencies.dealEventsStore
         )
         push(DealCreateScreen(viewModel: viewModel), title: "Новая сделка")

@@ -1,6 +1,6 @@
 import Foundation
 
-struct OrganizationBankAccount: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct OrganizationBankAccount: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var bankName: String
     var bankAccount: String

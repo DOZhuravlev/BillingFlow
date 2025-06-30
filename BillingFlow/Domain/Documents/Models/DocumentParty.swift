@@ -1,6 +1,6 @@
 import Foundation
 
-struct DocumentParty: Codable, Hashable, Sendable {
+nonisolated struct DocumentParty: Codable, Hashable, Sendable {
     var displayName: String
     var fullName: String
     var shortName: String

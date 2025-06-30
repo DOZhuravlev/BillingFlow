@@ -34,6 +34,7 @@ final class HomeViewModel: ObservableObject {
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
         documentEventsStore: DocumentEventsStore? = nil,
+        organizationEventsStore: OrganizationEventsStore? = nil,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
     ) {
         self.coordinator = coordinator
@@ -41,6 +42,7 @@ final class HomeViewModel: ObservableObject {
         self.organizationsRepository = organizationsRepository
         self.documentCardItemMapper = documentCardItemMapper
         bindDocumentEvents(documentEventsStore)
+        bindOrganizationEvents(organizationEventsStore)
     }
 }
 
@@ -50,6 +52,15 @@ private extension HomeViewModel {
     func bindDocumentEvents(_ documentEventsStore: DocumentEventsStore?) {
         documentEventsStore?
             .documentsDidChangePublisher
+            .sink { [weak self] in
+                self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
+    }
+
+    func bindOrganizationEvents(_ organizationEventsStore: OrganizationEventsStore?) {
+        organizationEventsStore?
+            .organizationsDidChangePublisher
             .sink { [weak self] in
                 self?.handleDocumentsDidChange()
             }

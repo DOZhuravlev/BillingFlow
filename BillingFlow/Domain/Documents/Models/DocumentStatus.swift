@@ -1,6 +1,6 @@
 import Foundation
 
-enum DocumentStatus: String, Codable, Hashable, Sendable {
+nonisolated enum DocumentStatus: String, Codable, Hashable, Sendable {
     case draft
     case ready
     case shared
