@@ -7,6 +7,7 @@ import UserNotifications
 final class AppNotificationCoordinator {
     private let documentsRepository: DocumentsRepositoryProtocol
     private let documentEventsStore: DocumentEventsStore
+    private let appRouteStore: AppRouteStore
     private let preferences: NotificationPreferences
     private let localNotificationService: LocalNotificationServiceProtocol
     private let pushRegistrationCoordinator: PushDeviceRegistrationCoordinator
@@ -18,12 +19,14 @@ final class AppNotificationCoordinator {
     init(
         documentsRepository: DocumentsRepositoryProtocol,
         documentEventsStore: DocumentEventsStore,
+        appRouteStore: AppRouteStore,
         preferences: NotificationPreferences,
         localNotificationService: LocalNotificationServiceProtocol,
         pushRegistrationCoordinator: PushDeviceRegistrationCoordinator
     ) {
         self.documentsRepository = documentsRepository
         self.documentEventsStore = documentEventsStore
+        self.appRouteStore = appRouteStore
         self.preferences = preferences
         self.localNotificationService = localNotificationService
         self.pushRegistrationCoordinator = pushRegistrationCoordinator
@@ -45,6 +48,13 @@ final class AppNotificationCoordinator {
                 Task { @MainActor [weak self] in
                     await self?.pushRegistrationCoordinator.registerStoredTokenIfPossible()
                 }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .billingDidOpenNotification)
+            .sink { [weak self] notification in
+                guard let userInfo = notification.object as? [AnyHashable: Any] else { return }
+                self?.handleNotificationOpen(userInfo: userInfo)
             }
             .store(in: &cancellables)
 
@@ -134,5 +144,19 @@ private extension AppNotificationCoordinator {
         document.status != .draft &&
         document.paidAt == nil &&
         document.paymentReminderDate.map { $0 > Date() } == true
+    }
+
+    func handleNotificationOpen(userInfo: [AnyHashable: Any]) {
+        guard let route = NotificationRoute(userInfo: userInfo) else { return }
+
+        switch route.type {
+        case .paymentReminder, .document:
+            guard let documentID = route.documentID else { return }
+            appRouteStore.openDocument(id: documentID)
+        case .news:
+            appRouteStore.openNews(id: route.newsID)
+        case .deal:
+            return
+        }
     }
 }

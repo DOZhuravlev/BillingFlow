@@ -5,6 +5,7 @@ struct AppDependencies {
     let dealsRepository: DealsRepositoryProtocol
     let organizationsRepository: OrganizationsRepositoryProtocol
     let organizationSearchService: OrganizationSearchServiceProtocol
+    let newsService: NewsServiceProtocol
     let authController: AuthController
     let syncCoordinator: AppSyncCoordinator
     let notificationPreferences: NotificationPreferences
@@ -24,6 +25,7 @@ struct AppDependencies {
         dealsRepository: DealsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
         organizationSearchService: OrganizationSearchServiceProtocol,
+        newsService: NewsServiceProtocol,
         authController: AuthController,
         syncCoordinator: AppSyncCoordinator,
         notificationPreferences: NotificationPreferences,
@@ -42,6 +44,7 @@ struct AppDependencies {
         self.dealsRepository = dealsRepository
         self.organizationsRepository = organizationsRepository
         self.organizationSearchService = organizationSearchService
+        self.newsService = newsService
         self.authController = authController
         self.syncCoordinator = syncCoordinator
         self.notificationPreferences = notificationPreferences

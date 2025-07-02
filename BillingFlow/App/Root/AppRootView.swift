@@ -53,6 +53,14 @@ struct AppRootView: View {
             guard request != nil else { return }
             appCoordinator.selectTab(.documents)
         }
+        .onChange(of: appRouteStore.documentOpenRequest) { request in
+            guard request != nil else { return }
+            appCoordinator.selectTab(.documents)
+        }
+        .onChange(of: appRouteStore.newsOpenRequest) { request in
+            guard request != nil else { return }
+            appCoordinator.selectTab(.home)
+        }
         .sheet(item: $appCoordinator.activeSheet) { sheet in
             //sheetView(sheet)
         }

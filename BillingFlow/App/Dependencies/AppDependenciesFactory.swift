@@ -15,6 +15,8 @@ enum AppDependenciesFactory {
         let organizationEventsStore = OrganizationEventsStore()
         let documentEventsStore = DocumentEventsStore()
         let dealEventsStore = DealEventsStore()
+        let appRouteStore = AppRouteStore()
+        let tabBarVisibilityStore = TabBarVisibilityStore()
         let localOrganizationsRepository = AccountScopedLocalOrganizationsRepository(
             scopeProvider: scopeProvider
         )
@@ -22,6 +24,7 @@ enum AppDependenciesFactory {
         let remoteDocumentsService = RemoteDocumentsService(apiClient: apiClient)
         let remoteDealsService = RemoteDealsService(apiClient: apiClient)
         let remotePushDeviceService = RemotePushDeviceService(apiClient: apiClient)
+        let newsService = RemoteNewsService(apiClient: apiClient)
         let documentsRepository = SyncingDocumentsRepository(
             localRepository: localDocumentsRepository,
             remoteService: remoteDocumentsService,
@@ -61,6 +64,7 @@ enum AppDependenciesFactory {
         let notificationCoordinator = AppNotificationCoordinator(
             documentsRepository: documentsRepository,
             documentEventsStore: documentEventsStore,
+            appRouteStore: appRouteStore,
             preferences: notificationPreferences,
             localNotificationService: LocalNotificationService(),
             pushRegistrationCoordinator: pushRegistrationCoordinator
@@ -81,8 +85,6 @@ enum AppDependenciesFactory {
             }
         )
         let organizationSearchService = RemoteOrganizationSearchService(apiClient: apiClient)
-        let appRouteStore = AppRouteStore()
-        let tabBarVisibilityStore = TabBarVisibilityStore()
         let documentFactory = DocumentFactory()
         let documentValidator = DocumentValidator()
 
@@ -96,6 +98,7 @@ enum AppDependenciesFactory {
             dealsRepository: dealsRepository,
             organizationsRepository: organizationsRepository,
             organizationSearchService: organizationSearchService,
+            newsService: newsService,
             authController: authController,
             syncCoordinator: syncCoordinator,
             notificationPreferences: notificationPreferences,

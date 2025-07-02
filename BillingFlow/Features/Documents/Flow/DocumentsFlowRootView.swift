@@ -43,9 +43,15 @@ struct DocumentsFlowRootView: UIViewControllerRepresentable {
     // MARK: - UIKit Update Cycle
 
     func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {
-        guard let request = appRouteStore.documentCreationRequest else { return }
-        context.coordinator.documentsCoordinator?.showCreateDocument(type: request.type)
-        appRouteStore.consumeDocumentCreationRequest(id: request.id)
+        if let request = appRouteStore.documentCreationRequest {
+            context.coordinator.documentsCoordinator?.showCreateDocument(type: request.type)
+            appRouteStore.consumeDocumentCreationRequest(id: request.id)
+        }
+
+        if let request = appRouteStore.documentOpenRequest {
+            context.coordinator.documentsCoordinator?.showDocument(id: request.documentID)
+            appRouteStore.consumeDocumentOpenRequest(id: request.id)
+        }
     }
 
     func makeCoordinator() -> Coordinator {

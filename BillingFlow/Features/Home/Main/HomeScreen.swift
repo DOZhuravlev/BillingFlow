@@ -15,7 +15,6 @@ struct HomeScreen: View {
     @ObservedObject var viewModel: HomeViewModel
 
     @State private var scrollOffset: CGFloat = .zero
-
     // MARK: - Body
 
     var body: some View {
@@ -43,6 +42,22 @@ struct HomeScreen: View {
         .task {
             await viewModel.loadDocumentsIfNeeded()
         }
+        .fullScreenCover(item: activeNewsBinding) { news in
+            NewsStoryScreen(news: news) {
+                viewModel.dismissNews()
+            }
+        }
+    }
+
+    var activeNewsBinding: Binding<BillingNews?> {
+        Binding(
+            get: { viewModel.activeNews },
+            set: { newValue in
+                if newValue == nil {
+                    viewModel.dismissNews()
+                }
+            }
+        )
     }
 }
 
@@ -129,9 +144,27 @@ private extension HomeScreen {
 
     var loadedDashboardView: some View {
         VStack(spacing: AppSpacing.xl) {
+            newsStoriesSection
             quickActionsSection
             recentDocumentsSection
-            topOrganizationsSection
+        }
+    }
+
+    @ViewBuilder
+    var newsStoriesSection: some View {
+        if viewModel.newsItems.isEmpty == false {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                sectionHeader("Новости", showsAll: false)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppSpacing.sm) {
+                        ForEach(Array(viewModel.newsItems.enumerated()), id: \.element.id) { index, news in
+                            newsStoryCard(news, index: index)
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                }
+            }
         }
     }
 
@@ -158,52 +191,34 @@ private extension HomeScreen {
         }
     }
 
+    @ViewBuilder
     var recentDocumentsSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            sectionHeader("Последние документы", showsAll: false)
+        if viewModel.recentDocuments.isEmpty == false {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                sectionHeader("Последние документы", showsAll: false)
 
-            VStack(spacing: AppSpacing.sm) {
-                ForEach(viewModel.recentDocuments) { document in
-                    BillGroupCard(
-                        iconName: document.iconName,
-                        title: document.title,
-                        date: document.subtitle,
-                        amount: document.amount,
-                        statusTitle: document.statusTitle,
-                        statusAmount: document.statusAmount,
-                        statusStyle: document.statusStyle,
-                        isDraft: document.isDraft
-                    )
-                    .onTapGesture {
-                        viewModel.didTapDocument(id: document.id)
+                VStack(spacing: AppSpacing.sm) {
+                    ForEach(viewModel.recentDocuments) { document in
+                        BillGroupCard(
+                            iconName: document.iconName,
+                            title: document.title,
+                            date: document.subtitle,
+                            amount: document.amount,
+                            statusTitle: document.statusTitle,
+                            statusAmount: document.statusAmount,
+                            statusStyle: document.statusStyle,
+                            isDraft: document.isDraft
+                        )
+                        .onTapGesture {
+                            viewModel.didTapDocument(id: document.id)
+                        }
                     }
                 }
             }
-        }
-        .padding(.horizontal, AppSpacing.md)
-    }
-
-    var topOrganizationsSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            sectionHeader("Частые контрагенты", showsAll: false)
-
-            VStack(spacing: AppSpacing.sm) {
-                ForEach(viewModel.topOrganizations) { organization in
-                    organizationRow(organization)
-                }
-            }
-        }
-        .padding(.horizontal, AppSpacing.md)
-        .background {
-            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                        .stroke(.white.opacity(0.35), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.14), radius: 24, x: 0, y: 12)
+            .padding(.horizontal, AppSpacing.md)
         }
     }
+
 }
 
 // MARK: - States
@@ -218,14 +233,14 @@ private extension HomeScreen {
     var loadingStateView: some View {
         VStack(spacing: AppSpacing.lg) {
             quickActionsSkeleton
-            sectionSkeleton(title: "Недавние документы")
-            sectionSkeleton(title: "Частые контрагенты")
+            sectionSkeleton(title: "Последние документы")
         }
         .padding(.horizontal, AppSpacing.md)
     }
 
     var emptyStateView: some View {
         VStack(spacing: AppSpacing.lg) {
+            newsStoriesSection
             quickActionsSection
 
             MaterialCard {
@@ -438,6 +453,47 @@ private extension HomeScreen {
         .disabled(isEnabled == false)
     }
 
+    func newsStoryCard(_ news: BillingNews, index: Int) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                viewModel.didTapNews(news)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                ZStack(alignment: .bottomLeading) {
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                        .fill(newsStoryGradient(index))
+                        .overlay(alignment: .topTrailing) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.84))
+                                .padding(AppSpacing.sm)
+                        }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(news.title)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+
+                        Text(newsShortDateText(news.updatedAt))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.76))
+                    }
+                    .padding(AppSpacing.md)
+                }
+                .frame(width: 142, height: 118)
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                        .stroke(.white.opacity(0.30), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.14), radius: 18, x: 0, y: 10)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     func dealMetricStyle(_ index: Int) -> FinanceMetricStyle {
         switch index % 3 {
         case 0: return .income
@@ -446,41 +502,94 @@ private extension HomeScreen {
         }
     }
 
-    func organizationRow(_ organization: TopOrganizationMetric) -> some View {
-        Button {
-            viewModel.didTapOrganization(organization)
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "briefcase.fill")
+    func newsStoryGradient(_ index: Int) -> LinearGradient {
+        let palettes: [[Color]] = [
+            [Color(red: 0.98, green: 0.45, blue: 0.12), Color(red: 0.90, green: 0.17, blue: 0.12)],
+            [Color(red: 0.12, green: 0.38, blue: 0.86), Color(red: 0.07, green: 0.18, blue: 0.52)],
+            [Color(red: 0.08, green: 0.55, blue: 0.43), Color(red: 0.03, green: 0.30, blue: 0.28)]
+        ]
+        return LinearGradient(
+            colors: palettes[index % palettes.count],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(organization.name)
-                        .font(AppFont.Text.caption)
-                        .foregroundStyle(AppColor.Text.primary)
+    func newsShortDateText(_ date: Date?) -> String {
+        guard let date else { return "Новое" }
+        return AppDateFormatter.documentDateText(date)
+    }
+}
 
-                    Text("Документов - \(organization.documentCount)")
-                        .font(AppFont.Text.caption)
-                        .foregroundStyle(AppColor.Text.secondary)
+// MARK: - News Story
+
+private struct NewsStoryScreen: View {
+    let news: BillingNews
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.06, green: 0.07, blue: 0.08),
+                    Color(red: 0.13, green: 0.16, blue: 0.18),
+                    Color(red: 0.98, green: 0.45, blue: 0.12)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: AppSpacing.xl) {
+                HStack(spacing: AppSpacing.sm) {
+                    Capsule()
+                        .fill(.white)
+                        .frame(height: 3)
+
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.white.opacity(0.16), in: Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(AppColor.Text.secondary)
-            }
-            .padding(.horizontal, AppSpacing.sm)
-            .padding(.vertical, AppSpacing.sm)
-            .background {
-                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .fill(.white.opacity(0.38))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                            .stroke(.white.opacity(0.28), lineWidth: 1)
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("BillingFlow")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .textCase(.uppercase)
+
+                    Text(news.title)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(news.body)
+                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.86))
+                        .lineSpacing(5)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let updatedAt = news.updatedAt {
+                        Text(AppDateFormatter.documentDateText(updatedAt))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.68))
+                            .padding(.top, AppSpacing.sm)
                     }
+                }
+
+                Spacer()
             }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.top, AppSpacing.md)
+            .padding(.bottom, AppSpacing.xl)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -492,7 +601,9 @@ private extension HomeScreen {
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.loaded,
-                organizationsRepository: PreviewOrganizationsRepository.loaded
+                organizationsRepository: PreviewOrganizationsRepository.loaded,
+                newsService: PreviewNewsService.loaded,
+                appRouteStore: nil
             )
         )
     }
@@ -504,7 +615,9 @@ private extension HomeScreen {
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.loading,
-                organizationsRepository: PreviewOrganizationsRepository.loaded
+                organizationsRepository: PreviewOrganizationsRepository.loaded,
+                newsService: PreviewNewsService.loaded,
+                appRouteStore: nil
             )
         )
     }
@@ -516,7 +629,9 @@ private extension HomeScreen {
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.empty,
-                organizationsRepository: PreviewOrganizationsRepository.empty
+                organizationsRepository: PreviewOrganizationsRepository.empty,
+                newsService: PreviewNewsService.empty,
+                appRouteStore: nil
             )
         )
     }
@@ -528,7 +643,9 @@ private extension HomeScreen {
             viewModel: HomeViewModel(
                 coordinator: PreviewDocumentsRouter(),
                 documentsRepository: PreviewDocumentsRepository.failure,
-                organizationsRepository: PreviewOrganizationsRepository.loaded
+                organizationsRepository: PreviewOrganizationsRepository.loaded,
+                newsService: PreviewNewsService.loaded,
+                appRouteStore: nil
             )
         )
     }
@@ -709,4 +826,30 @@ private struct PreviewOrganizationsRepository: OrganizationsRepositoryProtocol {
     func deleteOrganization(id: UUID) async throws { }
 
     func upsert(party: DocumentParty, role: Organization.Role) async throws { }
+}
+
+private struct PreviewNewsService: NewsServiceProtocol {
+    static let loaded = PreviewNewsService(news: [
+        BillingNews(
+            id: UUID(),
+            title: "Теперь можно отправлять push",
+            body: "Добавили серверные уведомления и подготовили новости для пользователей.",
+            actionURL: nil,
+            updatedAt: Date()
+        ),
+        BillingNews(
+            id: UUID(),
+            title: "Шаблоны документов на сервере",
+            body: "Скоро шаблоны счетов и актов можно будет обновлять без релиза приложения.",
+            actionURL: nil,
+            updatedAt: Calendar.current.date(byAdding: .day, value: -1, to: Date())
+        )
+    ])
+    static let empty = PreviewNewsService(news: [])
+
+    let news: [BillingNews]
+
+    func fetchNews() async throws -> [BillingNews] {
+        news
+    }
 }

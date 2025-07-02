@@ -16,14 +16,18 @@ final class HomeViewModel: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var recentDocuments: [DocumentCardItem] = []
-    @Published private(set) var topOrganizations: [TopOrganizationMetric] = []
+    @Published private(set) var newsItems: [BillingNews] = []
+    @Published private(set) var activeNews: BillingNews?
     private var documentsByID: [UUID: BusinessDocument] = [:]
+    private var pendingNewsOpenRequest: AppRouteStore.NewsOpenRequest?
 
     // MARK: - Dependencies
 
     private weak var coordinator: HomeCoordinatorProtocol?
     private let documentsRepository: DocumentsRepositoryProtocol
     private let organizationsRepository: OrganizationsRepositoryProtocol
+    private let newsService: NewsServiceProtocol
+    private let appRouteStore: AppRouteStore?
     private let documentCardItemMapper: DocumentCardItemMapper
     private var cancellables = Set<AnyCancellable>()
 
@@ -33,6 +37,8 @@ final class HomeViewModel: ObservableObject {
         coordinator: HomeCoordinatorProtocol,
         documentsRepository: DocumentsRepositoryProtocol,
         organizationsRepository: OrganizationsRepositoryProtocol,
+        newsService: NewsServiceProtocol,
+        appRouteStore: AppRouteStore? = nil,
         documentEventsStore: DocumentEventsStore? = nil,
         organizationEventsStore: OrganizationEventsStore? = nil,
         documentCardItemMapper: DocumentCardItemMapper = DocumentCardItemMapper()
@@ -40,9 +46,12 @@ final class HomeViewModel: ObservableObject {
         self.coordinator = coordinator
         self.documentsRepository = documentsRepository
         self.organizationsRepository = organizationsRepository
+        self.newsService = newsService
+        self.appRouteStore = appRouteStore
         self.documentCardItemMapper = documentCardItemMapper
         bindDocumentEvents(documentEventsStore)
         bindOrganizationEvents(organizationEventsStore)
+        bindNewsRoute(appRouteStore)
     }
 }
 
@@ -63,6 +72,16 @@ private extension HomeViewModel {
             .organizationsDidChangePublisher
             .sink { [weak self] in
                 self?.handleDocumentsDidChange()
+            }
+            .store(in: &cancellables)
+    }
+
+    func bindNewsRoute(_ appRouteStore: AppRouteStore?) {
+        appRouteStore?
+            .$newsOpenRequest
+            .sink { [weak self] request in
+                guard let request else { return }
+                self?.handleNewsOpenRequest(request)
             }
             .store(in: &cancellables)
     }
@@ -114,8 +133,12 @@ extension HomeViewModel {
         coordinator?.showDocument(document)
     }
 
-    func didTapOrganization(_ organization: TopOrganizationMetric) {
-        coordinator?.showOrganization(organization)
+    func didTapNews(_ news: BillingNews) {
+        activeNews = news
+    }
+
+    func dismissNews() {
+        activeNews = nil
     }
 
     func handleDocumentsDidChange() {
@@ -130,16 +153,21 @@ extension HomeViewModel {
 private extension HomeViewModel {
     func performLoad() async {
         do {
-            let documents = try await documentsRepository.fetchDocuments()
-            let organizations = try await organizationsRepository.fetchOrganizations()
+            async let documentsTask = documentsRepository.fetchDocuments()
+            async let organizationsTask = organizationsRepository.fetchOrganizations()
+            async let newsTask = fetchNewsSafely()
 
-            guard documents.isEmpty == false else {
+            let documents = try await documentsTask
+            let organizations = try await organizationsTask
+            let news = await newsTask
+
+            guard documents.isEmpty == false || news.isEmpty == false else {
                 clearContent()
                 state = .empty
                 return
             }
 
-            buildContent(documents: documents, organizations: organizations)
+            buildContent(documents: documents, organizations: organizations, news: news)
             state = .loaded
         } catch {
             clearContent()
@@ -153,14 +181,14 @@ private extension HomeViewModel {
 private extension HomeViewModel {
     func buildContent(
         documents: [BusinessDocument],
-        organizations: [Organization]
+        organizations: [Organization],
+        news: [BillingNews]
     ) {
+        _ = organizations
         documentsByID = Dictionary(uniqueKeysWithValues: documents.map { ($0.id, $0) })
         recentDocuments = makeRecentDocuments(from: documents)
-        topOrganizations = makeTopOrganizations(
-            organizations: organizations,
-            documents: documents
-        )
+        newsItems = news
+        resolvePendingNewsOpenRequest()
     }
 
     func makeRecentDocuments(from documents: [BusinessDocument]) -> [DocumentCardItem] {
@@ -170,74 +198,47 @@ private extension HomeViewModel {
             .map(documentCardItemMapper.map)
     }
 
-    func makeTopOrganizations(
-        organizations: [Organization],
-        documents: [BusinessDocument]
-    ) -> [TopOrganizationMetric] {
-        let organizationsByKey = organizations.reduce(into: [String: Organization]()) { result, organization in
-            result[organization.matchingKey] = organization
-        }
-        var metricsByKey: [String: (
-            organization: Organization,
-            count: Int,
-            total: Decimal,
-            currencyCode: String,
-            documents: [BusinessDocument]
-        )] = [:]
-
-        for document in documents where document.status != .draft && document.buyer.isEmpty == false {
-            let organization = Organization(party: document.buyer, role: .buyer)
-            let key = organization.matchingKey
-            let storedOrganization = organizationsByKey[key] ?? organization
-
-            if var metric = metricsByKey[key] {
-                metric.count += 1
-                metric.total += document.totals.total
-                metric.documents.append(document)
-                metricsByKey[key] = metric
-            } else {
-                metricsByKey[key] = (
-                    organization: storedOrganization,
-                    count: 1,
-                    total: document.totals.total,
-                    currencyCode: document.currencyCode,
-                    documents: [document]
-                )
-            }
-        }
-
-        return metricsByKey.values
-            .sorted { lhs, rhs in
-                if lhs.count == rhs.count {
-                    return lhs.total > rhs.total
-                }
-                return lhs.count > rhs.count
-            }
-            .prefix(3)
-            .map { metric in
-                TopOrganizationMetric(
-                    id: metric.organization.matchingKey,
-                    name: metric.organization.party.displayName,
-                    documentCount: metric.count,
-                    totalAmount: CurrencyFormatter.amountText(
-                        metric.total,
-                        currencyCode: metric.currencyCode
-                    ),
-                    party: metric.organization.party,
-                    documents: metric.documents.sorted { $0.date > $1.date }
-                )
-            }
-    }
-
     func documentComesBefore(_ lhs: BusinessDocument, _ rhs: BusinessDocument) -> Bool {
         if lhs.status == .draft, rhs.status != .draft { return true }
         if lhs.status != .draft, rhs.status == .draft { return false }
         return (lhs.updatedAt ?? lhs.date) > (rhs.updatedAt ?? rhs.date)
     }
 
+    func fetchNewsSafely() async -> [BillingNews] {
+        do {
+            return try await newsService.fetchNews()
+        } catch {
+            return []
+        }
+    }
+
+    func handleNewsOpenRequest(_ request: AppRouteStore.NewsOpenRequest) {
+        pendingNewsOpenRequest = request
+        if case .idle = state {
+            Task { [weak self] in
+                await self?.loadDocuments()
+            }
+        } else {
+            resolvePendingNewsOpenRequest()
+        }
+    }
+
+    func resolvePendingNewsOpenRequest() {
+        guard let request = pendingNewsOpenRequest else { return }
+        guard newsItems.isEmpty == false else { return }
+
+        if let newsID = request.newsID {
+            guard let news = newsItems.first(where: { $0.id == newsID }) else { return }
+            activeNews = news
+        }
+
+        pendingNewsOpenRequest = nil
+        appRouteStore?.consumeNewsOpenRequest(id: request.id)
+    }
+
     func clearContent() {
         documentsByID = [:]
         recentDocuments = []
-        topOrganizations = []
+        newsItems = []
     }
 }

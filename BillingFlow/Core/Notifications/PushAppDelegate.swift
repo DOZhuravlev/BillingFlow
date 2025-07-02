@@ -44,4 +44,14 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
             object: fcmToken
         )
     }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        NotificationCenter.default.post(
+            name: .billingDidOpenNotification,
+            object: response.notification.request.content.userInfo
+        )
+    }
 }

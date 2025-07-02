@@ -102,6 +102,20 @@ final class DocumentsCoordinator: NSObject, DocumentsCoordinatorProtocol {
         updateTabBarVisibility()
     }
 
+    func showDocument(id: UUID) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if let document = try await documentsRepository.fetchDocument(id: id) {
+                    navigationController.popToRootViewController(animated: false)
+                    showDetail(document: document)
+                }
+            } catch {
+                return
+            }
+        }
+    }
+
 
     // MARK: - Document Editor Navigation
 

@@ -14,9 +14,21 @@ final class AppRouteStore: ObservableObject {
         let type: DocumentType
     }
 
+    struct DocumentOpenRequest: Identifiable, Equatable {
+        let id: UUID
+        let documentID: UUID
+    }
+
+    struct NewsOpenRequest: Identifiable, Equatable {
+        let id: UUID
+        let newsID: UUID?
+    }
+
     @Published private(set) var organizationProfileRequestID: UUID?
     @Published private(set) var dealCreationRequest: DealCreationRequest?
     @Published private(set) var documentCreationRequest: DocumentCreationRequest?
+    @Published private(set) var documentOpenRequest: DocumentOpenRequest?
+    @Published private(set) var newsOpenRequest: NewsOpenRequest?
 
     func openOrganizationProfile() {
         organizationProfileRequestID = UUID()
@@ -43,5 +55,23 @@ final class AppRouteStore: ObservableObject {
     func consumeDocumentCreationRequest(id: UUID) {
         guard documentCreationRequest?.id == id else { return }
         documentCreationRequest = nil
+    }
+
+    func openDocument(id documentID: UUID) {
+        documentOpenRequest = DocumentOpenRequest(id: UUID(), documentID: documentID)
+    }
+
+    func consumeDocumentOpenRequest(id: UUID) {
+        guard documentOpenRequest?.id == id else { return }
+        documentOpenRequest = nil
+    }
+
+    func openNews(id newsID: UUID?) {
+        newsOpenRequest = NewsOpenRequest(id: UUID(), newsID: newsID)
+    }
+
+    func consumeNewsOpenRequest(id: UUID) {
+        guard newsOpenRequest?.id == id else { return }
+        newsOpenRequest = nil
     }
 }
